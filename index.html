@@ -1,0 +1,2385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>事项台账</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root{
+  --ink:#1b2430;
+  --ink-soft:#3a4453;
+  --paper:#f6f4ee;
+  --paper-dim:#ece8dd;
+  --card:#fffdf8;
+  --line:#ddd5c3;
+  --line-soft:#e8e2d3;
+  --jade:#2f6f5e;
+  --jade-soft:#e2eee9;
+  --clay:#a85a2a;
+  --clay-soft:#f3e6d8;
+  --indigo:#3d4f8f;
+  --indigo-soft:#e5e8f3;
+  --amber:#bd7f1c;
+  --amber-soft:#f6ead0;
+  --muted:#767065;
+  --danger:#a13d3d;
+  --radius:10px;
+  --shadow:0 1px 2px rgba(27,36,48,.06), 0 4px 14px rgba(27,36,48,.05);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px;}
+#app{max-width:1080px;margin:0 auto;padding:0 20px 100px;min-height:100vh;}
+h1,h2,h3{font-family:'Source Serif 4',serif;font-weight:600;margin:0;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+.muted{color:var(--muted);}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;font-size:13.5px;}
+
+header.top{display:flex;align-items:center;justify-content:space-between;padding:22px 0 14px;position:sticky;top:0;background:var(--paper);z-index:20;border-bottom:1px solid var(--line);}
+.brand{display:flex;align-items:baseline;gap:10px;}
+.brand h1{font-size:21px;letter-spacing:.2px;}
+.brand .sub{font-size:11.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;letter-spacing:.3px;}
+nav.tabs{display:flex;gap:4px;background:var(--paper-dim);padding:4px;border-radius:999px;}
+nav.tabs button{border:none;background:transparent;padding:7px 15px;border-radius:999px;font-size:13px;color:var(--ink-soft);font-weight:500;transition:.15s;}
+nav.tabs button.active{background:var(--ink);color:var(--paper);}
+
+.filterbar{display:flex;align-items:center;gap:10px;margin:16px 0 6px;flex-wrap:wrap;}
+.filterbar select{border:1px solid var(--line);background:var(--card);border-radius:7px;padding:6px 10px;color:var(--ink-soft);}
+.daypill{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);}
+
+.daylabel{display:flex;align-items:baseline;gap:8px;margin:22px 0 8px;}
+.daylabel .d{font-family:'Source Serif 4',serif;font-size:15px;font-weight:600;}
+.daylabel .n{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+.daylabel hr{flex:1;border:none;border-top:1px dashed var(--line);}
+
+.row{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--radius);padding:11px 13px;margin-bottom:8px;box-shadow:var(--shadow);}
+.row .top{display:flex;align-items:flex-start;gap:10px;}
+.chk{width:19px;height:19px;border-radius:6px;border:1.6px solid var(--ink-soft);flex:0 0 auto;margin-top:1px;display:flex;align-items:center;justify-content:center;background:transparent;color:transparent;transition:.12s;}
+.chk.done{background:var(--jade);border-color:var(--jade);color:#fff;}
+.row .body{flex:1;min-width:0;}
+.row .title{font-size:14.5px;font-weight:500;line-height:1.35;}
+.row.done .title{text-decoration:line-through;color:var(--muted);}
+.meta{display:flex;flex-wrap:nowrap;gap:6px;margin-top:5px;align-items:center;overflow-x:auto;scrollbar-width:none;}
+.meta::-webkit-scrollbar{display:none;}
+.meta .tag{flex:0 0 auto;}
+.tag{font-size:10.5px;padding:2px 7px;border-radius:5px;font-weight:500;letter-spacing:.2px;}
+.tag.cat-recurring{background:var(--jade-soft);color:var(--jade);}
+.tag.cat-adhoc{background:var(--clay-soft);color:var(--clay);}
+.tag.cat-project{background:var(--indigo-soft);color:var(--indigo);}
+.tag.overdue{background:var(--amber-soft);color:var(--amber);}
+.tag.time{background:var(--paper-dim);color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+.tag.who{background:transparent;color:var(--muted);border:1px solid var(--line);}
+.tag.takeaway-tag{background:var(--jade-soft);color:var(--jade);}
+.rowbtns{display:flex;gap:4px;margin-left:auto;flex:0 0 auto;}
+.iconbtn{border:none;background:transparent;color:var(--muted);font-size:14px;padding:3px 6px;border-radius:6px;}
+.iconbtn:hover{background:var(--paper-dim);color:var(--ink);}
+
+.chain{margin-top:10px;padding-top:10px;border-top:1px solid var(--line-soft);}
+.chain-item{display:flex;align-items:flex-start;gap:9px;padding:5px 0;position:relative;}
+.chain-item .dot{width:9px;height:9px;border-radius:50%;background:var(--paper-dim);border:1.6px solid var(--line);margin-top:5px;flex:0 0 auto;position:relative;z-index:1;cursor:pointer;}
+.chain-item .dot.done{background:var(--jade);border-color:var(--jade);}
+.chain-item:not(:last-child)::before{content:'';position:absolute;left:4px;top:16px;width:1.4px;height:calc(100% - 4px);background:var(--line);}
+.chain-item .stxt{font-size:13px;line-height:1.4;flex:1;}
+.chain-item.sdone .stxt{color:var(--muted);text-decoration:line-through;}
+.chain-item .stime{font-size:10.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+
+.takeaway-toggle{margin-top:9px;font-size:11.5px;color:var(--jade);background:var(--jade-soft);display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;border:none;}
+.takeaway-list{margin-top:8px;padding:9px 10px;background:var(--paper-dim);border-radius:7px;font-size:12.5px;}
+.takeaway-list .ta-item{padding:5px 0;border-bottom:1px solid var(--line-soft);}
+.takeaway-list .ta-item:last-child{border:none;}
+.ta-tags{margin-top:3px;}
+.ta-tags span{font-size:10px;color:var(--muted);background:var(--card);padding:1px 6px;border-radius:4px;margin-right:4px;}
+
+.empty{padding:40px 10px;text-align:center;color:var(--muted);}
+.empty b{display:block;font-family:'Source Serif 4',serif;font-size:16px;color:var(--ink-soft);margin-bottom:4px;}
+
+.fab{position:fixed;right:26px;bottom:26px;width:56px;height:56px;border-radius:50%;background:var(--ink);color:var(--paper);border:none;font-size:26px;box-shadow:0 6px 20px rgba(27,36,48,.35);z-index:30;}
+
+.overlay{position:fixed;inset:0;background:rgba(27,32,40,.45);display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;z-index:100;overflow:auto;}
+.modal{background:var(--paper);border-radius:14px;max-width:560px;width:100%;padding:22px 22px 20px;box-shadow:0 20px 60px rgba(0,0,0,.3);position:relative;}
+.modal h2{font-size:18px;margin-bottom:14px;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;}
+.field input[type=text],.field input[type=date],.field input[type=time],.field input[type=password],.field input[type=email],.field select,.field textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink);}
+.field textarea{resize:vertical;min-height:70px;}
+.inline{display:flex;gap:10px;}
+.inline .field{flex:1;}
+.checkline{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-soft);margin-top:6px;}
+.btnrow{display:flex;gap:8px;margin-top:16px;justify-content:flex-end;}
+.btn{border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:500;}
+.btn.primary{background:var(--ink);color:var(--paper);}
+.btn.ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line);}
+.btn.jade{background:var(--jade);color:#fff;}
+.btn:disabled{opacity:.5;cursor:default;}
+.btn.sm{padding:5px 10px;font-size:12px;}
+.hint{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.6;}
+.aiflag{font-size:9.5px;background:var(--amber-soft);color:var(--amber);padding:1px 5px;border-radius:4px;margin-left:6px;font-weight:600;}
+.cardsplit{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;background:var(--card);}
+.cardsplit h3{font-size:13.5px;margin-bottom:8px;color:var(--ink-soft);}
+.toast{position:fixed;bottom:96px;right:26px;background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;font-size:13px;z-index:200;box-shadow:var(--shadow);max-width:300px;}
+
+.libcard{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);}
+.libcard .lh{display:flex;align-items:center;gap:10px;cursor:pointer;}
+.libcard .lh h3{font-size:14.5px;flex:1;}
+.libcard .lh .car{transition:.15s;color:var(--muted);}
+.libcard.open .lh .car{transform:rotate(90deg);}
+.libcard .detail{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);}
+.libcard.open .detail{display:block;}
+.addstepline{display:flex;gap:6px;margin-top:10px;}
+.addstepline input{flex:1;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);}
+
+.dropdownmgr{margin-bottom:22px;}
+.chipwrap{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.chip{background:var(--paper-dim);border-radius:6px;padding:4px 9px;font-size:12px;display:flex;align-items:center;gap:6px;}
+.chip button{border:none;background:transparent;color:var(--muted);font-size:12px;line-height:1;}
+.addline{display:flex;gap:6px;margin-top:8px;}
+.addline input{flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:7px;}
+
+.newmenu{position:relative;}
+.popover{position:absolute;top:calc(100% + 6px);right:0;background:var(--card);border:1px solid var(--line);border-radius:9px;box-shadow:var(--shadow);z-index:40;overflow:hidden;min-width:150px;}
+.popover button{display:block;width:100%;text-align:left;padding:9px 12px;border:none;background:transparent;font-size:13px;color:var(--ink-soft);}
+.popover button:hover{background:var(--paper-dim);}
+
+.micbtn{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--card);flex:0 0 auto;font-size:15px;color:var(--ink-soft);}
+.micbtn.listening{background:var(--danger);color:#fff;border-color:var(--danger);animation:pulse 1.2s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(161,61,61,.5);}70%{box-shadow:0 0 0 9px rgba(161,61,61,0);}100%{box-shadow:0 0 0 0 rgba(161,61,61,0);}}
+.captureinputrow{display:flex;gap:8px;align-items:flex-start;}
+.captureinputrow textarea{flex:1;}
+
+.statusdot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
+.statusdot.on{background:var(--jade);}
+.statusdot.off{background:var(--muted);}
+.segwrap{display:flex;gap:6px;margin-top:6px;}
+.segbtn{border:1px solid var(--line);background:var(--card);padding:6px 12px;border-radius:7px;font-size:12.5px;color:var(--ink-soft);}
+.segbtn.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+.settingsblock{border:1px solid var(--line-soft);border-radius:10px;padding:14px 16px;margin-bottom:16px;background:var(--card);}
+.settingsblock h3{font-size:14px;margin-bottom:8px;}
+
+.row[draggable=true]{cursor:grab;}
+.row.dragging{opacity:.4;}
+.row.dragover{border-color:var(--ink-soft);box-shadow:0 0 0 2px var(--ink-soft) inset;}
+.draghandle{color:var(--muted);font-size:16px;letter-spacing:-2px;padding:2px 4px;cursor:grab;user-select:none;}
+
+.weeknav{display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap;}
+.weekstrip{display:flex;gap:5px;}
+.weekstrip .wcell{width:38px;text-align:center;padding:5px 2px;border-radius:7px;background:var(--card);border:1px solid var(--line-soft);cursor:pointer;}
+.weekstrip .wcell.today{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+.weekstrip .wcell .wd{font-size:9.5px;color:inherit;opacity:.7;display:block;}
+.weekstrip .wcell .wn{font-size:12.5px;font-family:'IBM Plex Mono',monospace;font-weight:600;display:block;}
+.weekstrip .wcell .wdot{width:4px;height:4px;border-radius:50%;background:var(--clay);display:inline-block;margin-top:2px;}
+.weekstrip .wcell.today .wdot{background:var(--paper);}
+.recwidget{margin-top:4px;}
+
+.quickaddbar{display:flex;gap:8px;margin:14px 0 4px;}
+.quickaddbar input{flex:1;padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:var(--card);font-size:13.5px;box-shadow:var(--shadow);}
+.quickaddbar input:focus{outline:none;border-color:var(--ink-soft);}
+.quickaddbar #quickAddAI{flex:0 0 auto;white-space:nowrap;font-size:12px;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:0 14px;}
+.quickaddbar #quickAddAI:hover{color:var(--ink);border-color:var(--ink-soft);}
+
+.row{transition:box-shadow .12s, border-color .12s;}
+.row:hover{border-color:var(--line);box-shadow:0 2px 6px rgba(27,36,48,.08), 0 1px 2px rgba(27,36,48,.06);}
+.libcard{transition:box-shadow .12s;}
+.libcard:hover{box-shadow:0 2px 8px rgba(27,36,48,.09);}
+.rowmenu-btn{color:var(--muted);}
+.rowmenu-btn:hover{background:var(--paper-dim);color:var(--ink);}
+
+@media (max-width:640px){
+  header.top{flex-direction:column;align-items:stretch;gap:10px;}
+  nav.tabs{overflow-x:auto;}
+  .weeknav{width:100%;margin-left:0;}
+  .weekstrip{overflow-x:auto;width:100%;}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ============ local-only config (never synced to cloud) ============ */
+/* ============================================================
+   团队默认配置 —— 完全可选，不填也完全没问题
+   ------------------------------------------------------------
+   这三行只是一个"少打两个字"的小捷径，不是必须的步骤：
+   Supabase 的 URL / anon key，本来就应该由每个人在网页的"设置"里自己填写保存
+   （已经是这样实现的），跟这个 html 文件本身、跟托管在哪个平台都没关系，
+   Netlify/GitHub Pages 只是负责"把这个文件放到一个网址上"，不涉及任何配置项。
+
+   如果你不想碰代码：完全可以跳过下面这三行，保持空着。把 Supabase 项目的
+   Project URL 和 anon key 这两个值发给组员（微信/文档都行），大家各自打开
+   网页后，在"设置 → 云端同步"里自己粘贴一次、保存，然后各自用邮箱注册/登录即可。
+   这两个值本来就是 Supabase 设计给前端公开使用的"客户端公钥"，配合已经开启的
+   RLS 策略使用是官方标准做法，发给组员看到也没关系。
+
+   如果你不介意打开这个文件改两行代码、想让组员打开页面时这两项已经是预填好的
+   （省得每个人都要粘贴一次），也可以填在下面，效果上完全一样，纯粹是省事而已。
+
+   TEAM_DEEPSEEK_KEY 单独说明（默认建议留空）：
+     这个不一样，是一个真正会花钱的密钥，写在这里的话谁打开"查看网页源代码"都能看到并占用。
+     默认留空，让每个组员在自己的"设置"里填各自的 DeepSeek Key，最安全、成本各自承担。
+     ⚠️ 另外要注意：这个文件一旦离开 Claude 的预览环境（比如部署到 GitHub Pages / Netlify），
+        "内置 AI（无需 Key）"这个兜底选项就会失效——那是 Claude 预览环境专属的能力。
+        所以部署出去之后，想用 AI 解析就必须配 DeepSeek Key（自己配或者团队统一配），
+        没配的人一样能正常用，只是新建事项时改用"手动创建"。
+   ============================================================ */
+const TEAM_SUPABASE_URL = '';
+const TEAM_SUPABASE_ANON_KEY = '';
+const TEAM_DEEPSEEK_KEY = '';
+
+function defaultConfig(){
+  return { aiProvider: TEAM_DEEPSEEK_KEY ? 'deepseek' : 'claude', deepseekKey: TEAM_DEEPSEEK_KEY,
+    supabaseUrl: TEAM_SUPABASE_URL, supabaseAnonKey: TEAM_SUPABASE_ANON_KEY,
+    accessToken:'', refreshToken:'', userId:'', userEmail:'', tokenExpiry:0 };
+}
+function hasClaudeStorage(){
+  try{ return typeof window.storage !== 'undefined' && window.storage !== null && typeof window.storage.get === 'function'; }
+  catch(e){ return false; }
+}
+async function loadConfig(){
+  const def = defaultConfig();
+  try{
+    if(hasClaudeStorage()){
+      const r = await window.storage.get('wt:config', false);
+      if(r && r.value!=null) return Object.assign(def, JSON.parse(r.value));
+    } else {
+      const v = window.localStorage.getItem('wt:config');
+      if(v) return Object.assign(def, JSON.parse(v));
+    }
+  }catch(e){ /* fall through to default */ }
+  return def;
+}
+async function saveConfig(){
+  try{
+    if(hasClaudeStorage()) await window.storage.set('wt:config', JSON.stringify(S.config), false);
+    else window.localStorage.setItem('wt:config', JSON.stringify(S.config));
+  }catch(e){ console.error(e); }
+}
+
+/* ============ cloud (Supabase REST, plain fetch, no SDK) ============ */
+function cloudConfigured(){ return !!(S.config.supabaseUrl && S.config.supabaseAnonKey); }
+function cloudLoggedIn(){ return cloudConfigured() && !!S.config.accessToken && !!S.config.userId; }
+
+async function tryRefreshToken(){
+  if(!S.config.refreshToken || !cloudConfigured()) return false;
+  try{
+    const res = await fetch(`${S.config.supabaseUrl}/auth/v1/token?grant_type=refresh_token`, {
+      method:'POST', headers:{apikey:S.config.supabaseAnonKey,'Content-Type':'application/json'},
+      body: JSON.stringify({refresh_token:S.config.refreshToken})
+    });
+    if(!res.ok) return false;
+    const data = await res.json();
+    S.config.accessToken = data.access_token;
+    S.config.refreshToken = data.refresh_token || S.config.refreshToken;
+    S.config.tokenExpiry = Date.now() + (data.expires_in||3600)*1000;
+    await saveConfig();
+    return true;
+  }catch(e){ return false; }
+}
+async function signUpPassword(email, password){
+  const res = await fetch(`${S.config.supabaseUrl}/auth/v1/signup`, {
+    method:'POST', headers:{apikey:S.config.supabaseAnonKey,'Content-Type':'application/json'},
+    body: JSON.stringify({email, password})
+  });
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.msg || data.error_description || JSON.stringify(data));
+  if(!data.access_token){
+    // no session returned usually means "Confirm email" is still ON in Supabase Auth settings
+    throw new Error('注册成功但未直接登录——请去 Supabase 的 Authentication → Sign In/Providers → Email 里关闭 "Confirm email" 开关后重试');
+  }
+  applySession(data, email);
+}
+async function signInPassword(email, password){
+  const res = await fetch(`${S.config.supabaseUrl}/auth/v1/token?grant_type=password`, {
+    method:'POST', headers:{apikey:S.config.supabaseAnonKey,'Content-Type':'application/json'},
+    body: JSON.stringify({email, password})
+  });
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.msg || data.error_description || JSON.stringify(data));
+  applySession(data, email);
+}
+async function applySession(data, email){
+  S.config.accessToken = data.access_token;
+  S.config.refreshToken = data.refresh_token;
+  S.config.userId = data.user.id;
+  S.config.userEmail = email;
+  S.config.tokenExpiry = Date.now() + (data.expires_in||3600)*1000;
+  await saveConfig();
+}
+function cloudLogout(){
+  S.config.accessToken=''; S.config.refreshToken=''; S.config.userId=''; S.config.userEmail='';
+  saveConfig();
+}
+async function cloudGet(key, retried){
+  const url = `${S.config.supabaseUrl}/rest/v1/app_data?user_id=eq.${S.config.userId}&key=eq.${key}&select=value`;
+  const res = await fetch(url, {headers:{apikey:S.config.supabaseAnonKey, Authorization:`Bearer ${S.config.accessToken}`}});
+  if(res.status===401 && !retried){ if(await tryRefreshToken()) return cloudGet(key,true); throw new Error('未登录或登录已过期'); }
+  if(!res.ok) throw new Error('云端读取失败: '+res.status);
+  const data = await res.json();
+  return data.length ? data[0].value : undefined;
+}
+async function cloudSet(key, val, retried){
+  const url = `${S.config.supabaseUrl}/rest/v1/app_data?on_conflict=user_id,key`;
+  const res = await fetch(url, {
+    method:'POST',
+    headers:{apikey:S.config.supabaseAnonKey, Authorization:`Bearer ${S.config.accessToken}`, 'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=minimal'},
+    body: JSON.stringify([{user_id:S.config.userId, key, value:val, updated_at:new Date().toISOString()}])
+  });
+  if(res.status===401 && !retried){ if(await tryRefreshToken()) return cloudSet(key,val,true); throw new Error('未登录或登录已过期'); }
+  if(!res.ok) throw new Error('云端写入失败: '+res.status);
+}
+
+/* ============ generic storage layer: cloud if logged in, else local ============ */
+async function loadKey(key, def){
+  if(cloudLoggedIn()){
+    try{ const v = await cloudGet(key); return v!==undefined ? v : def; }
+    catch(e){ console.warn('cloud load failed, falling back to local', e); }
+  }
+  try{
+    if(hasClaudeStorage()){
+      const r = await window.storage.get('wt:'+key, false);
+      if(!r || r.value==null) return def;
+      return JSON.parse(r.value);
+    } else {
+      const v = window.localStorage.getItem('wt:'+key);
+      if(!v) return def;
+      return JSON.parse(v);
+    }
+  }catch(e){ return def; }
+}
+async function saveKey(key, val){
+  if(cloudLoggedIn()){
+    try{ await cloudSet(key, val); return; }
+    catch(e){ console.warn('cloud save failed, saved locally instead', e); showToast('云端保存失败，已临时保存到本地：'+e.message); }
+  }
+  try{
+    if(hasClaudeStorage()) await window.storage.set('wt:'+key, JSON.stringify(val), false);
+    else window.localStorage.setItem('wt:'+key, JSON.stringify(val));
+  }catch(e){ console.error(e); }
+}
+
+function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); }
+function todayStr(){ return fmtDate(new Date()); }
+function fmtDate(d){ const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dd}`; }
+function addDays(d,n){ const nd=new Date(d); nd.setDate(nd.getDate()+n); return nd; }
+function parseDate(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+const WEEKDAY_NAMES_FULL=['周一','周二','周三','周四','周五','周六','周日'];
+function isoWeekday(d){ const w=d.getDay(); return w===0?6:w-1; }
+function mondayOfWeek(d){ const wd=isoWeekday(d); return addDays(d,-wd); }
+
+function nthWeekdayOfMonth(year,monthIdx,weekday,n){
+  const first=new Date(year,monthIdx,1);
+  const firstWd=isoWeekday(first);
+  let offset=(weekday-firstWd+7)%7;
+  if(n>0){
+    const day=1+offset+(n-1)*7;
+    const d=new Date(year,monthIdx,day);
+    if(d.getMonth()!==monthIdx) return null;
+    return d;
+  }else{
+    const last=new Date(year,monthIdx+1,0);
+    const lastWd=isoWeekday(last);
+    const back=(lastWd-weekday+7)%7;
+    return new Date(year,monthIdx+1,0-back);
+  }
+}
+function nthWorkdayOfMonth(year,monthIdx,n){
+  let count=0,day=1;
+  const daysInMonth=new Date(year,monthIdx+1,0).getDate();
+  while(day<=daysInMonth){
+    const d=new Date(year,monthIdx,day);
+    const wd=d.getDay();
+    if(wd!==0 && wd!==6){ count++; if(count===n) return d; }
+    day++;
+  }
+  return null;
+}
+function timeToMin(t){ if(!t) return null; const [h,m]=t.split(':').map(Number); return h*60+m; }
+
+/* ============ state ============ */
+let S = {
+  config: defaultConfig(),
+  templates:[], projects:[], instances:[], cycles:[],
+  dropdowns:{stakeholders:[], eventNames:[]},
+  takeawaysByName:{},
+  todayOrder:{date:null, order:[]},
+  raw:[]
+};
+let ui = { tab:'today', openCards:{}, whoFilter:'', pendingCards:[], newMenuOpen:false, taTagFilter:'', taSearch:'', weekOffset:0 };
+
+async function loadAll(){
+  S.templates = await loadKey('templates', []);
+  S.projects = await loadKey('projects', []);
+  S.instances = await loadKey('instances', []);
+  S.cycles = await loadKey('cycles', []);
+  S.dropdowns = await loadKey('dropdowns', {stakeholders:[], eventNames:[]});
+  S.takeawaysByName = await loadKey('takeawaysByName', {});
+  S.todayOrder = await loadKey('todayOrder', {date:null, order:[]});
+  S.raw = await loadKey('raw', []);
+  if(S.todayOrder.date !== todayStr()) S.todayOrder = {date:todayStr(), order:[]};
+}
+async function persist(part){
+  const keys = ['templates','projects','instances','cycles','dropdowns','takeawaysByName','todayOrder','raw'];
+  if(part){ await saveKey(part, S[part]); }
+  else{ for(const k of keys) await saveKey(k, S[k]); }
+}
+
+/* ============ recurrence engine (Outlook-style: freq/interval/pattern/range) ============ */
+function defaultRecurrence(){
+  return {
+    freq:'weekly', interval:1,
+    weekdays:[0], // ISO Mon=0..Sun=6, used by weekly
+    monthlyMode:'dayOfMonth', dayOfMonth:1, nthN:1, nthWeekday:0,
+    yearlyMode:'date', yearMonth:1, yearDay:1,
+    rangeStart: todayStr(),
+    rangeEnd: {type:'never', until:'', count:12}
+  };
+}
+function matchesRecurrence(rec, date, rangeStartDate){
+  const diffDays = Math.round((date - rangeStartDate)/86400000);
+  if(diffDays < 0) return false;
+  const interval = Math.max(1, rec.interval||1);
+  if(rec.freq==='daily'){
+    return diffDays % interval === 0;
+  }
+  if(rec.freq==='weekly'){
+    const startMon = mondayOfWeek(rangeStartDate);
+    const dateMon = mondayOfWeek(date);
+    const weeksDiff = Math.round((dateMon-startMon)/(7*86400000));
+    if(weeksDiff % interval !== 0) return false;
+    const wd = isoWeekday(date);
+    const wds = (rec.weekdays && rec.weekdays.length) ? rec.weekdays : [isoWeekday(rangeStartDate)];
+    return wds.includes(wd);
+  }
+  if(rec.freq==='monthly'){
+    const monthsDiff = (date.getFullYear()-rangeStartDate.getFullYear())*12 + (date.getMonth()-rangeStartDate.getMonth());
+    if(monthsDiff < 0 || monthsDiff % interval !== 0) return false;
+    if(rec.monthlyMode==='dayOfMonth'){
+      const lastDay = new Date(date.getFullYear(), date.getMonth()+1, 0).getDate();
+      return date.getDate() === Math.min(rec.dayOfMonth||1, lastDay);
+    } else if(rec.monthlyMode==='nthWorkday'){
+      const target = nthWorkdayOfMonth(date.getFullYear(), date.getMonth(), rec.nthN);
+      return target && fmtDate(target)===fmtDate(date);
+    } else {
+      const target = nthWeekdayOfMonth(date.getFullYear(), date.getMonth(), rec.nthWeekday, rec.nthN);
+      return target && fmtDate(target)===fmtDate(date);
+    }
+  }
+  if(rec.freq==='yearly'){
+    const yearsDiff = date.getFullYear()-rangeStartDate.getFullYear();
+    if(yearsDiff < 0 || yearsDiff % interval !== 0) return false;
+    if((date.getMonth()+1) !== (rec.yearMonth||1)) return false;
+    if(rec.yearlyMode==='date'){
+      return date.getDate() === (rec.yearDay||1);
+    } else {
+      const target = nthWeekdayOfMonth(date.getFullYear(), (rec.yearMonth||1)-1, rec.nthWeekday, rec.nthN);
+      return target && fmtDate(target)===fmtDate(date);
+    }
+  }
+  return false;
+}
+function generateAnchorsInWindow(rec, windowStart, windowEnd){
+  const rangeStartDate = rec.rangeStart ? parseDate(rec.rangeStart) : windowStart;
+  const untilDate = (rec.rangeEnd && rec.rangeEnd.type==='until' && rec.rangeEnd.until) ? parseDate(rec.rangeEnd.until) : null;
+  const maxCount = (rec.rangeEnd && rec.rangeEnd.type==='count' && rec.rangeEnd.count) ? rec.rangeEnd.count : Infinity;
+  const hardStopCap = addDays(rangeStartDate, 366*3); // safety cap: scan at most 3 years ahead
+  const scanEnd = windowEnd < hardStopCap ? windowEnd : hardStopCap;
+  const results = [];
+  let count = 0;
+  let cursor = new Date(rangeStartDate);
+  let iterations = 0;
+  while(cursor <= scanEnd && iterations < 4000){
+    iterations++;
+    if(untilDate && cursor > untilDate) break;
+    if(matchesRecurrence(rec, cursor, rangeStartDate)){
+      count++;
+      if(count > maxCount) break;
+      if(cursor >= windowStart && cursor <= windowEnd) results.push(fmtDate(cursor));
+    }
+    cursor = addDays(cursor, 1);
+  }
+  return results;
+}
+function recurrenceSummary(rec){
+  const iv = rec.interval||1;
+  let core = '';
+  if(rec.freq==='daily') core = iv===1? '每天' : `每${iv}天`;
+  else if(rec.freq==='weekly'){
+    const days = (rec.weekdays&&rec.weekdays.length? rec.weekdays: [0]).map(w=>WEEKDAY_NAMES_FULL[w]).join('、');
+    core = (iv===1? '每周 ':`每${iv}周 `) + days;
+  } else if(rec.freq==='monthly'){
+    let modeTxt;
+    if(rec.monthlyMode==='dayOfMonth') modeTxt = `${rec.dayOfMonth}号`;
+    else if(rec.monthlyMode==='nthWorkday') modeTxt = `第${rec.nthN}个工作日`;
+    else modeTxt = `第${rec.nthN===-1?'最后一':rec.nthN}周${WEEKDAY_NAMES_FULL[rec.nthWeekday]}`;
+    core = (iv===1?'每月':`每${iv}个月`) + ` ${modeTxt}`;
+  } else if(rec.freq==='yearly'){
+    core = (iv===1?'每年':`每${iv}年`) + ` ${rec.yearMonth}月` + (rec.yearlyMode==='date'? `${rec.yearDay}号` : `第${rec.nthN===-1?'最后一':rec.nthN}周${WEEKDAY_NAMES_FULL[rec.nthWeekday]}`);
+  }
+  let rangeTxt = `，从 ${rec.rangeStart} 开始`;
+  if(rec.rangeEnd){
+    if(rec.rangeEnd.type==='until' && rec.rangeEnd.until) rangeTxt += `，到 ${rec.rangeEnd.until} 结束`;
+    else if(rec.rangeEnd.type==='count' && rec.rangeEnd.count) rangeTxt += `，重复 ${rec.rangeEnd.count} 次后结束`;
+    else rangeTxt += '，无结束日期';
+  }
+  return core + rangeTxt;
+}
+
+/* ---- shared recurrence field UI, reusable anywhere a recurrence needs configuring ---- */
+function recurrenceFieldsHTML(prefix, rec){
+  return `
+    <div class="inline">
+      <div class="field"><label>频率</label><select id="${prefix}Freq">
+        <option value="daily" ${rec.freq==='daily'?'selected':''}>按天</option>
+        <option value="weekly" ${rec.freq==='weekly'?'selected':''}>按周</option>
+        <option value="monthly" ${rec.freq==='monthly'?'selected':''}>按月</option>
+        <option value="yearly" ${rec.freq==='yearly'?'selected':''}>按年</option>
+      </select></div>
+      <div class="field"><label>重复间隔为</label><input type="number" min="1" id="${prefix}Interval" value="${rec.interval||1}"></div>
+    </div>
+    <div id="${prefix}PatternWrap"></div>
+    <div class="inline" style="margin-top:10px;">
+      <div class="field"><label>开始日期</label><input type="date" id="${prefix}Start" value="${rec.rangeStart}"></div>
+      <div class="field"><label>结束方式</label><select id="${prefix}EndType">
+        <option value="never" ${rec.rangeEnd.type==='never'?'selected':''}>无结束日期</option>
+        <option value="until" ${rec.rangeEnd.type==='until'?'selected':''}>于此日期结束</option>
+        <option value="count" ${rec.rangeEnd.type==='count'?'selected':''}>重复N次后结束</option>
+      </select></div>
+    </div>
+    <div class="inline">
+      <div class="field" id="${prefix}UntilWrap" style="display:${rec.rangeEnd.type==='until'?'block':'none'};"><label>结束日期</label><input type="date" id="${prefix}Until" value="${rec.rangeEnd.until||''}"></div>
+      <div class="field" id="${prefix}CountWrap" style="display:${rec.rangeEnd.type==='count'?'block':'none'};"><label>重复次数</label><input type="number" min="1" id="${prefix}Count" value="${rec.rangeEnd.count||12}"></div>
+    </div>
+    <div class="hint" id="${prefix}Summary">${recurrenceSummary(rec)}</div>
+  `;
+}
+function wireRecurrenceFields(container, prefix, rec, onChange){
+  function updateSummary(){
+    const s = container.querySelector('#'+prefix+'Summary');
+    if(s) s.textContent = recurrenceSummary(rec);
+    if(onChange) onChange();
+  }
+  function renderPatternFields(){
+    const wrap = container.querySelector('#'+prefix+'PatternWrap');
+    if(rec.freq==='daily'){
+      wrap.innerHTML = '';
+    } else if(rec.freq==='weekly'){
+      wrap.innerHTML = `<div class="field"><label>在这些天发生</label>
+        <div class="checkline" style="flex-wrap:wrap;">
+          ${WEEKDAY_NAMES_FULL.map((w,i)=>`<label style="margin-right:8px;"><input type="checkbox" data-wd="${i}" ${rec.weekdays.includes(i)?'checked':''}> ${w}</label>`).join('')}
+        </div></div>`;
+      wrap.querySelectorAll('[data-wd]').forEach(cb=>{
+        cb.onchange = ()=>{
+          const wd = +cb.dataset.wd;
+          if(cb.checked){ if(!rec.weekdays.includes(wd)) rec.weekdays.push(wd); }
+          else { rec.weekdays = rec.weekdays.filter(x=>x!==wd); }
+          updateSummary();
+        };
+      });
+    } else if(rec.freq==='monthly'){
+      wrap.innerHTML = `<div class="field"><label>规则类型</label><select id="${prefix}MonMode">
+          <option value="dayOfMonth" ${rec.monthlyMode==='dayOfMonth'?'selected':''}>每月第几号</option>
+          <option value="nthWeekday" ${rec.monthlyMode==='nthWeekday'?'selected':''}>每月第几周星期几</option>
+          <option value="nthWorkday" ${rec.monthlyMode==='nthWorkday'?'selected':''}>每月第几个工作日</option>
+        </select></div>
+        <div class="inline" id="${prefix}MonExtra"></div>`;
+      function renderMonExtra(){
+        const ex = container.querySelector('#'+prefix+'MonExtra');
+        if(rec.monthlyMode==='dayOfMonth'){
+          ex.innerHTML = `<div class="field"><label>号数</label><input type="number" min="1" max="31" id="${prefix}MonDay" value="${rec.dayOfMonth}"></div>`;
+          ex.querySelector('#'+prefix+'MonDay').onchange = e=>{ rec.dayOfMonth=Number(e.target.value); updateSummary(); };
+        } else if(rec.monthlyMode==='nthWeekday'){
+          ex.innerHTML = `<div class="field"><label>第几周（-1=最后一周）</label><input type="number" min="-1" max="5" id="${prefix}MonN" value="${rec.nthN}"></div>
+            <div class="field"><label>星期几</label><select id="${prefix}MonWd">${WEEKDAY_NAMES_FULL.map((w,i)=>`<option value="${i}" ${rec.nthWeekday===i?'selected':''}>${w}</option>`).join('')}</select></div>`;
+          ex.querySelector('#'+prefix+'MonN').onchange = e=>{ rec.nthN=Number(e.target.value); updateSummary(); };
+          ex.querySelector('#'+prefix+'MonWd').onchange = e=>{ rec.nthWeekday=Number(e.target.value); updateSummary(); };
+        } else {
+          ex.innerHTML = `<div class="field"><label>第几个工作日</label><input type="number" min="1" max="23" id="${prefix}MonWorkN" value="${rec.nthN}"></div>`;
+          ex.querySelector('#'+prefix+'MonWorkN').onchange = e=>{ rec.nthN=Number(e.target.value); updateSummary(); };
+        }
+      }
+      container.querySelector('#'+prefix+'MonMode').onchange = e=>{ rec.monthlyMode=e.target.value; renderMonExtra(); updateSummary(); };
+      renderMonExtra();
+    } else if(rec.freq==='yearly'){
+      wrap.innerHTML = `<div class="inline">
+          <div class="field"><label>月份</label><select id="${prefix}YrMonth">${Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}" ${rec.yearMonth===m?'selected':''}>${m}月</option>`).join('')}</select></div>
+          <div class="field"><label>规则类型</label><select id="${prefix}YrMode">
+            <option value="date" ${rec.yearlyMode==='date'?'selected':''}>具体号数</option>
+            <option value="nthWeekday" ${rec.yearlyMode==='nthWeekday'?'selected':''}>第几周星期几</option>
+          </select></div>
+        </div>
+        <div class="inline" id="${prefix}YrExtra"></div>`;
+      function renderYrExtra(){
+        const ex = container.querySelector('#'+prefix+'YrExtra');
+        if(rec.yearlyMode==='date'){
+          ex.innerHTML = `<div class="field"><label>号数</label><input type="number" min="1" max="31" id="${prefix}YrDay" value="${rec.yearDay}"></div>`;
+          ex.querySelector('#'+prefix+'YrDay').onchange = e=>{ rec.yearDay=Number(e.target.value); updateSummary(); };
+        } else {
+          ex.innerHTML = `<div class="field"><label>第几周（-1=最后一周）</label><input type="number" min="-1" max="5" id="${prefix}YrN" value="${rec.nthN}"></div>
+            <div class="field"><label>星期几</label><select id="${prefix}YrWd">${WEEKDAY_NAMES_FULL.map((w,i)=>`<option value="${i}" ${rec.nthWeekday===i?'selected':''}>${w}</option>`).join('')}</select></div>`;
+          ex.querySelector('#'+prefix+'YrN').onchange = e=>{ rec.nthN=Number(e.target.value); updateSummary(); };
+          ex.querySelector('#'+prefix+'YrWd').onchange = e=>{ rec.nthWeekday=Number(e.target.value); updateSummary(); };
+        }
+      }
+      container.querySelector('#'+prefix+'YrMonth').onchange = e=>{ rec.yearMonth=Number(e.target.value); updateSummary(); };
+      container.querySelector('#'+prefix+'YrMode').onchange = e=>{ rec.yearlyMode=e.target.value; renderYrExtra(); updateSummary(); };
+      renderYrExtra();
+    }
+  }
+  container.querySelector('#'+prefix+'Freq').onchange = e=>{ rec.freq=e.target.value; renderPatternFields(); updateSummary(); };
+  container.querySelector('#'+prefix+'Interval').onchange = e=>{ rec.interval=Math.max(1, Number(e.target.value)||1); updateSummary(); };
+  container.querySelector('#'+prefix+'Start').onchange = e=>{ rec.rangeStart = e.target.value || todayStr(); updateSummary(); };
+  container.querySelector('#'+prefix+'EndType').onchange = e=>{
+    rec.rangeEnd.type = e.target.value;
+    container.querySelector('#'+prefix+'UntilWrap').style.display = rec.rangeEnd.type==='until'?'block':'none';
+    container.querySelector('#'+prefix+'CountWrap').style.display = rec.rangeEnd.type==='count'?'block':'none';
+    updateSummary();
+  };
+  container.querySelector('#'+prefix+'Until').onchange = e=>{ rec.rangeEnd.until=e.target.value; updateSummary(); };
+  container.querySelector('#'+prefix+'Count').onchange = e=>{ rec.rangeEnd.count=Number(e.target.value)||1; updateSummary(); };
+  renderPatternFields();
+}
+
+/* ---- reusable button-that-expands date/time picker, so forms don't show every field upfront ---- */
+function renderDateTimePicker(initial, onChange){
+  const val = { date: (initial&&initial.date)||'', time:(initial&&initial.time)||'', noTime: !!(initial&&initial.noTime) };
+  const wrap = el(`<div class="recwidget"></div>`);
+  wrap.innerHTML = `
+    <button type="button" class="btn ghost sm dtp-btn">📅 <span class="dtpsum"></span></button>
+    <div class="dtp-panel cardsplit" style="display:none;margin-top:8px;">
+      <div class="inline">
+        <div class="field"><label>日期（可选）</label><input type="date" class="dtp-date" value="${val.date}"></div>
+        <div class="field"><label>时间（可选）</label><input type="time" class="dtp-time" value="${val.time}" ${val.noTime?'disabled':''}></div>
+      </div>
+      <div class="checkline"><label><input type="checkbox" class="dtp-notime" ${val.noTime?'checked':''}> 无固定时间</label></div>
+    </div>
+  `;
+  const btn = wrap.querySelector('.dtp-btn');
+  const panel = wrap.querySelector('.dtp-panel');
+  const sumEl = wrap.querySelector('.dtpsum');
+  const dateInp = wrap.querySelector('.dtp-date');
+  const timeInp = wrap.querySelector('.dtp-time');
+  const noTimeInp = wrap.querySelector('.dtp-notime');
+  function updateSummary(){
+    if(!val.date && !val.noTime) sumEl.textContent = '未设置日期/时间（点击设置）';
+    else {
+      let s = val.date || '未定日期';
+      s += val.noTime ? ' · 无固定时间' : (val.time? ` · ${val.time}` : '');
+      sumEl.textContent = s;
+    }
+  }
+  btn.onclick = ()=>{ panel.style.display = panel.style.display==='none' ? 'block':'none'; };
+  dateInp.onchange = ()=>{ val.date = dateInp.value; updateSummary(); if(onChange) onChange(val); };
+  timeInp.onchange = ()=>{ val.time = timeInp.value; updateSummary(); if(onChange) onChange(val); };
+  noTimeInp.onchange = ()=>{ val.noTime = noTimeInp.checked; timeInp.disabled = val.noTime; updateSummary(); if(onChange) onChange(val); };
+  updateSummary();
+  wrap.getValue = ()=>val;
+  return wrap;
+}
+
+/* ---- reusable button-that-expands recurrence picker, for any secondary "does this repeat?" field ---- */
+function renderRecurrencePicker(initialRec, onChange, startOpen){
+  const prefix = 'rp'+uid();
+  let rec = initialRec ? JSON.parse(JSON.stringify(initialRec)) : null;
+  const wrap = el(`<div class="recwidget"></div>`);
+  wrap.innerHTML = `
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+      <button type="button" class="btn ghost sm recwidget-btn">🔁 <span class="recsum"></span></button>
+      <button type="button" class="btn ghost sm recwidget-clear" style="display:none;">取消循环</button>
+    </div>
+    <div class="recwidget-panel cardsplit" style="display:none;margin-top:8px;"></div>
+  `;
+  const btn = wrap.querySelector('.recwidget-btn');
+  const clearBtn = wrap.querySelector('.recwidget-clear');
+  const panel = wrap.querySelector('.recwidget-panel');
+  const sumEl = wrap.querySelector('.recsum');
+  function updateSummary(){
+    sumEl.textContent = rec ? recurrenceSummary(rec) : '不重复（点击设置循环）';
+    clearBtn.style.display = rec ? 'inline-block' : 'none';
+  }
+  function renderPanel(){
+    panel.innerHTML = recurrenceFieldsHTML(prefix, rec);
+    wireRecurrenceFields(panel, prefix, rec, ()=>{ updateSummary(); if(onChange) onChange(rec); });
+  }
+  btn.onclick = ()=>{
+    if(!rec){ rec = defaultRecurrence(); if(onChange) onChange(rec); }
+    const willOpen = panel.style.display==='none';
+    if(willOpen){ renderPanel(); panel.style.display='block'; }
+    else { panel.style.display='none'; }
+    updateSummary();
+  };
+  clearBtn.onclick = (e)=>{ e.stopPropagation(); rec = null; panel.style.display='none'; panel.innerHTML=''; if(onChange) onChange(rec); updateSummary(); };
+  updateSummary();
+  if(startOpen && rec){ renderPanel(); panel.style.display='block'; }
+  wrap.getRec = ()=>rec;
+  return wrap;
+}
+
+/* ============ cycle generation ============ */
+function ensureCyclesGenerated(){
+  const today = new Date();
+  const windowStart = addDays(today, -21);
+  const windowEnd = addDays(today, 60);
+  for(const t of S.templates){
+    const rec = t.recurrence || defaultRecurrence();
+    const anchors = generateAnchorsInWindow(rec, windowStart, windowEnd);
+    anchors.forEach(anchorStr=>{
+      const cycleKey = anchorStr;
+      if(S.cycles.find(c=>c.templateId===t.id && c.cycleKey===cycleKey)) return;
+      const anchor = parseDate(anchorStr);
+      const steps = t.steps.map(st=>({
+        id:uid(), stepDefId:st.id, content:st.content,
+        date: fmtDate(addDays(anchor, st.offsetDays||0)),
+        time: st.noTime? null : st.time, noTime: !!st.noTime,
+        reminder: st.reminder!==false, status:'todo'
+      }));
+      S.cycles.push({id:uid(), templateId:t.id, cycleKey, anchorDate:cycleKey, steps, createdAt:Date.now(), skipped:false});
+    });
+  }
+}
+function currentCycleFor(t){
+  const cands = S.cycles.filter(c=>c.templateId===t.id);
+  if(!cands.length) return null;
+  const offsets = t.steps.map(s=>s.offsetDays||0);
+  const minOffset = offsets.length ? Math.min(0, ...offsets) : 0;
+  const maxOffset = offsets.length ? Math.max(0, ...offsets) : 0;
+  const today = todayStr();
+  let best = cands.find(c=>{
+    const start=fmtDate(addDays(parseDate(c.anchorDate), minOffset));
+    const end=fmtDate(addDays(parseDate(c.anchorDate), maxOffset));
+    return today>=start && today<=end;
+  });
+  if(!best) best = cands.slice().sort((a,b)=>parseDate(a.anchorDate)-parseDate(b.anchorDate)).find(c=>c.anchorDate>=today) || cands[cands.length-1];
+  return best;
+}
+
+/* ============ unified feed rows (today/week) ============ */
+function buildRowsForDate(dateStr){
+  const rows=[];
+  for(const c of S.cycles){
+    if(c.skipped) continue;
+    const t = S.templates.find(x=>x.id===c.templateId);
+    if(!t) continue;
+    for(const st of c.steps){
+      if(st.skipped) continue;
+      const due = st.date;
+      const showToday = due===dateStr || (st.status!=='done' && due && due<dateStr && dateStr===todayStr());
+      if(!showToday) continue;
+      rows.push({ key:`cycle:${c.id}:step:${st.id}`, kind:'recurringStep', category:'recurring',
+        title:`${t.name} · ${st.content}`, stakeholder:t.stakeholder, time:st.time, noTime:st.noTime,
+        status:st.status, createdAt:c.createdAt, overdueDays: due && due<dateStr ? diffDays(due,dateStr) : 0,
+        refCycle:c, refStep:st, refTemplate:t });
+    }
+  }
+  for(const inst of S.instances){
+    if(inst.status==='done') continue;
+    const due = inst.dueDate || null;
+    const showToday = due===dateStr || (due && due<dateStr && dateStr===todayStr());
+    if(!showToday) continue;
+    rows.push({ key:`adhoc:${inst.id}`, kind:'adhoc', category:'adhoc',
+      title:inst.title, stakeholder:inst.stakeholder, time:inst.time, noTime:inst.noTime,
+      status:inst.status, createdAt:inst.createdAt, overdueDays: due && due<dateStr ? diffDays(due,dateStr) : 0,
+      refInstance:inst });
+  }
+  for(const p of S.projects){
+    if(p.status==='已结束') continue;
+    (p.steps||[]).forEach(next=>{
+      if(next.status==='done') return;
+      const due = next.date || null;
+      const showToday = due===dateStr || (due && due<dateStr && dateStr===todayStr()) || (!due && dateStr===todayStr());
+      if(!showToday) return;
+      rows.push({ key:`project:${p.id}:step:${next.id}`, kind:'projectNext', category:'project',
+        title:`${p.name} · ${next.content}`, stakeholder:p.stakeholder, time:next.time, noTime: !next.time,
+        status:next.status, createdAt:p.createdAt, overdueDays: due && due<dateStr? diffDays(due,dateStr):0,
+        refProject:p, refStep:next });
+    });
+  }
+  return rows;
+}
+function diffDays(dateStr, refStr){ const a=parseDate(dateStr), b=parseDate(refStr); return Math.max(0, Math.round((b-a)/86400000)); }
+
+function sortRows(rows, isToday){
+  const timed = rows.filter(r=>r.time && !r.noTime);
+  const untimed = rows.filter(r=>!r.time || r.noTime);
+  timed.sort((a,b)=> timeToMin(a.time)-timeToMin(b.time));
+  untimed.sort((a,b)=> a.createdAt-b.createdAt);
+  let ordered = [...timed, ...untimed];
+  if(isToday && S.todayOrder.date===todayStr() && S.todayOrder.order.length){
+    const orderMap = {}; S.todayOrder.order.forEach((k,i)=>orderMap[k]=i);
+    ordered = ordered.slice().sort((a,b)=>{
+      const ia = orderMap[a.key], ib = orderMap[b.key];
+      if(ia!==undefined && ib!==undefined) return ia-ib;
+      if(ia!==undefined) return -1;
+      if(ib!==undefined) return 1;
+      return 0;
+    });
+  }
+  return ordered;
+}
+function applyWhoFilter(rows){ if(!ui.whoFilter) return rows; return rows.filter(r=> (r.stakeholder||'').includes(ui.whoFilter)); }
+
+/* ============ render shell ============ */
+function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
+
+function render(){
+  ensureCyclesGenerated();
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <header class="top">
+      <div class="brand"><h1>事项台账</h1><span class="sub">WORK LEDGER · ${todayStr()} · 今日待办 ${buildRowsForDate(todayStr()).filter(r=>r.status!=='done').length} 项${cloudLoggedIn()?' · 已连接云端':''}</span></div>
+      <nav class="tabs">
+        ${tabBtn('today','今日')}${tabBtn('week','本周')}${tabBtn('projects','项目')}${tabBtn('takeaways','经验')}${tabBtn('settings','设置')}
+      </nav>
+    </header>
+    <div id="tabbody"></div>
+    <datalist id="globalStkList">${curatedStkOptions().map(o=>`<option value="${o}">`).join('')}</datalist>
+    <datalist id="globalProjList">${existingProjectNames().map(o=>`<option value="${o.replace(/"/g,'&quot;')}">`).join('')}</datalist>
+    <button class="fab" id="fabBtn" title="快速录入">+</button>
+  `;
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{ ui.tab=b.dataset.tab; if(ui.tab==='today') ui.weekOffset=0; render(); });
+  document.getElementById('fabBtn').onclick = openCapture;
+  const body = document.getElementById('tabbody');
+  if(ui.tab==='today') body.appendChild(renderToday());
+  else if(ui.tab==='week') body.appendChild(renderWeek());
+  else if(ui.tab==='projects') body.appendChild(renderUnifiedProjects());
+  else if(ui.tab==='takeaways') body.appendChild(renderTakeawaysTab());
+  else if(ui.tab==='settings') body.appendChild(renderSettings());
+}
+function tabBtn(id,label){ return `<button data-tab="${id}" class="${ui.tab===id?'active':''}">${label}</button>`; }
+
+function whoOptions(){
+  const set = new Set(S.dropdowns.stakeholders);
+  [...S.templates, ...S.projects, ...S.instances].forEach(x=>{ if(x.stakeholder) set.add(x.stakeholder); });
+  return [...set];
+}
+// Curated-only list for data-entry suggestions (Settings → 常用需求方管理).
+// Deliberately does NOT scan historical templates/projects/instances, so one-off
+// names typed once don't silently accumulate into the suggestion list.
+function curatedStkOptions(){
+  return [...S.dropdowns.stakeholders];
+}
+function filterBarHtml(){
+  const opts = whoOptions();
+  return `<div class="filterbar">
+    <select id="whoFilter"><option value="">谁在等我：全部</option>${opts.map(o=>`<option value="${o}" ${ui.whoFilter===o?'selected':''}>${o}</option>`).join('')}</select>
+    ${weekStripHtml()}
+  </div>`;
+}
+function weekStripHtml(){
+  const mon = addDays(mondayOfWeek(new Date()), ui.weekOffset*7);
+  const cells = [];
+  for(let i=0;i<7;i++){
+    const d = addDays(mon,i); const ds = fmtDate(d);
+    const count = buildRowsForDate(ds).filter(r=>r.status!=='done').length;
+    const isToday = ds===todayStr();
+    cells.push(`<div class="wcell ${isToday?'today':''}" data-jumpday="${ds}">
+      <span class="wd">${WEEKDAY_NAMES_FULL[i].slice(1)}</span>
+      <span class="wn">${d.getDate()}</span>
+      ${count? `<span class="wdot"></span>`:''}
+    </div>`);
+  }
+  const sun = addDays(mon,6);
+  const rangeLabel = `${mon.getMonth()+1}/${mon.getDate()} - ${sun.getMonth()+1}/${sun.getDate()}`;
+  return `<div class="weeknav">
+    <button class="btn ghost sm" id="weekPrevBtn" title="上一周">‹</button>
+    <span class="daypill" style="min-width:78px;text-align:center;">${rangeLabel}</span>
+    <button class="btn ghost sm" id="weekNextBtn" title="下一周">›</button>
+    ${ui.weekOffset!==0? `<button class="btn ghost sm" id="weekTodayBtn">回到本周</button>`:''}
+    <div class="weekstrip" id="weekStrip">${cells.join('')}</div>
+  </div>`;
+}
+function wireWeekStrip(){
+  const strip = document.getElementById('weekStrip');
+  if(!strip) return;
+  strip.querySelectorAll('[data-jumpday]').forEach(c=>{
+    c.onclick = ()=>{
+      const ds = c.dataset.jumpday;
+      ui.tab = 'week'; render();
+      setTimeout(()=>{ const sec = document.getElementById('daysec_'+ds); if(sec) sec.scrollIntoView({behavior:'smooth', block:'start'}); }, 30);
+    };
+  });
+  const prevBtn = document.getElementById('weekPrevBtn');
+  const nextBtn = document.getElementById('weekNextBtn');
+  const todayBtn = document.getElementById('weekTodayBtn');
+  if(prevBtn) prevBtn.onclick = ()=>{ ui.weekOffset--; render(); };
+  if(nextBtn) nextBtn.onclick = ()=>{ ui.weekOffset++; render(); };
+  if(todayBtn) todayBtn.onclick = ()=>{ ui.weekOffset=0; render(); };
+}
+
+function renderToday(){
+  const wrap = el(`<div></div>`);
+  wrap.innerHTML = `<div class="quickaddbar">
+    <input type="text" id="quickAddInput" placeholder="快速添加一条待办，回车自动 AI 解析…">
+    <button class="iconbtn" id="quickAddAI" title="打开完整录入框（支持语音、一次拆多条、更细致地关联项目/识别时间）">✨ 完整录入</button>
+  </div>` + filterBarHtml();
+  let rows = buildRowsForDate(todayStr());
+  rows = applyWhoFilter(rows);
+  rows = sortRows(rows, true);
+  const list = el(`<div id="rowlist"></div>`);
+  if(!rows.length){ list.appendChild(el(`<div class="empty"><b>今天暂时干净</b>没有到期的事项，在上面输入框回车随手记一条。</div>`)); }
+  else { rows.forEach((r,i)=> list.appendChild(renderRow(r, true, i, rows.length))); }
+  wrap.appendChild(list);
+  setTimeout(()=>{
+    const sel=document.getElementById('whoFilter'); if(sel) sel.onchange=()=>{ ui.whoFilter=sel.value; render(); };
+    wireWeekStrip();
+    const qaInput = document.getElementById('quickAddInput');
+    qaInput.onkeydown = (e)=>{
+      if(e.key==='Enter' && qaInput.value.trim()){
+        const title = qaInput.value.trim();
+        qaInput.value='';
+        triggerQuickAI(title);
+      }
+    };
+    document.getElementById('quickAddAI').onclick = ()=> openCapture(qaInput.value.trim());
+  },0);
+  return wrap;
+}
+function renderWeek(){
+  const wrap = el(`<div></div>`);
+  wrap.innerHTML = filterBarHtml();
+  const mon = addDays(mondayOfWeek(new Date()), ui.weekOffset*7);
+  for(let i=0;i<7;i++){
+    const d = addDays(mon,i); const ds = fmtDate(d);
+    let rows = buildRowsForDate(ds); rows = applyWhoFilter(rows); rows = sortRows(rows, ds===todayStr());
+    wrap.appendChild(el(`<div class="daylabel" id="daysec_${ds}"><span class="d">${WEEKDAY_NAMES_FULL[i]}</span><span class="n mono">${ds}${ds===todayStr()?' · 今天':''}</span><hr></div>`));
+    if(!rows.length){ wrap.appendChild(el(`<div class="empty" style="padding:14px;">暂无安排</div>`)); }
+    else rows.forEach((r,idx)=> wrap.appendChild(renderRow(r, false, idx, rows.length)));
+  }
+  setTimeout(()=>{ const sel=document.getElementById('whoFilter'); if(sel) sel.onchange=()=>{ ui.whoFilter=sel.value; render(); }; wireWeekStrip(); },0);
+  return wrap;
+}
+function catTagHtml(cat){
+  const map = {recurring:['周期','cat-recurring'], adhoc:['日常','cat-adhoc'], project:['项目','cat-project']};
+  const [label,cls] = map[cat]; return `<span class="tag ${cls}">${label}</span>`;
+}
+function renderRow(r, movable, idx, total){
+  if(r.kind==='recurringStep' || r.kind==='projectNext'){
+    return renderCheckpointRow(r, movable);
+  }
+  return renderAdhocRow(r, movable);
+}
+
+function renderCheckpointRow(r, movable){
+  const st = r.refStep;
+  const editKey = 'editstep_' + st.id;
+  const editing = !!ui.openCards[editKey];
+  const opts = r.kind==='recurringStep'
+    ? {
+        allowSkip:true,
+        onToggleDone:()=>toggleRow(r),
+        onAddTakeaway:()=>quickAddTakeawayFor('template', r.refTemplate, st.content, st.stepDefId),
+        onSave:({content,dtVal,skipped})=>{
+          st.content=content; if(dtVal.date) st.date=dtVal.date;
+          st.time=dtVal.noTime?null:(dtVal.time||null); st.noTime=!!dtVal.noTime; st.skipped=skipped;
+          persist('cycles'); render();
+        }
+      }
+    : {
+        allowRepeat:true,
+        onToggleDone:()=>toggleRow(r),
+        onAddTakeaway:()=>quickAddTakeawayFor('project', r.refProject, st.content, st.id),
+        onDelete:()=>{ r.refProject.steps = (r.refProject.steps||[]).filter(s=>s.id!==st.id); persist('projects'); render(); },
+        onSave:({content,dtVal,repeatVal})=>{
+          st.content=content; st.date=dtVal.date||null;
+          st.time=dtVal.noTime?null:(dtVal.time||null); st.noTime=!!dtVal.noTime; st.repeat=repeatVal;
+          persist('projects'); render();
+        }
+      };
+  if(editing){
+    const row = el(`<div class="row"></div>`);
+    row.appendChild(renderCheckpointItem(st, opts));
+    return row;
+  }
+  const done = r.status==='done';
+  const row = el(`<div class="row ${done?'done':''}"></div>`);
+  const timeTag = r.time && !r.noTime ? `<span class="tag time">${r.time}</span>` : (r.noTime?`<span class="tag time">无固定时间</span>`:'');
+  const overdueTag = r.overdueDays? `<span class="tag overdue">已逾期${r.overdueDays}天</span>` : '';
+  const whoTag = r.stakeholder? `<span class="tag who">${r.stakeholder}</span>` : '';
+  row.innerHTML = `
+    <div class="top">
+      <button class="chk ${done?'done':''}" data-key="${r.key}">${done?'✓':''}</button>
+      <div class="body">
+        <div class="title" data-clickedit="1" style="cursor:text;">${r.title}</div>
+        <div class="meta">${catTagHtml(r.category)}${timeTag}${overdueTag}${whoTag}</div>
+      </div>
+      <div class="rowbtns" data-rowbtns="1">
+        ${movable? `<span class="draghandle" title="拖拽调整顺序">⠿</span>`:''}
+      </div>
+    </div>
+  `;
+  if(r.kind==='recurringStep'){
+    const tag = stepTakeawayTag(r.refTemplate.takeaways, r.refStep.stepDefId);
+    if(tag) row.querySelector('.meta').appendChild(tag);
+    const expanded = stepTakeawayExpanded(r.refTemplate.takeaways, r.refStep.stepDefId);
+    if(expanded) row.appendChild(expanded);
+  } else if(r.kind==='projectNext'){
+    const tag = stepTakeawayTag(r.refProject.takeaways, r.refStep.id);
+    if(tag) row.querySelector('.meta').appendChild(tag);
+    const expanded = stepTakeawayExpanded(r.refProject.takeaways, r.refStep.id);
+    if(expanded) row.appendChild(expanded);
+  }
+  if(r.kind==='recurringStep' && ui.openCards['cy_'+r.refCycle.id]) row.appendChild(renderChain(r.refCycle, r.refTemplate));
+  if(movable){
+    row.draggable = true;
+    row.dataset.rowkey = r.key;
+    row.addEventListener('dragstart', (e)=>{ dragState.key = r.key; row.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', r.key); }catch(_){} });
+    row.addEventListener('dragend', ()=>{ row.classList.remove('dragging'); dragState.key=null; });
+    row.addEventListener('dragover', (e)=>{ e.preventDefault(); row.classList.add('dragover'); });
+    row.addEventListener('dragleave', ()=>{ row.classList.remove('dragover'); });
+    row.addEventListener('drop', (e)=>{
+      e.preventDefault(); row.classList.remove('dragover');
+      const fromKey = dragState.key;
+      if(!fromKey || fromKey===r.key) return;
+      reorderTodayRows(fromKey, r.key);
+    });
+  }
+  setTimeout(()=>{
+    row.querySelector('.chk').onclick = ()=> toggleRow(r);
+    row.querySelector('[data-clickedit]').onclick = ()=>{ ui.openCards[editKey]=true; render(); };
+    const menuItems = [{label:'💡 记录经验', onClick:()=>{
+      if(r.kind==='recurringStep') quickAddTakeawayFor('template', r.refTemplate, r.refStep.content, r.refStep.stepDefId);
+      else if(r.kind==='projectNext') quickAddTakeawayFor('project', r.refProject, r.refStep.content, r.refStep.id);
+    }}];
+    if(r.kind==='recurringStep'){
+      const expanded = !!ui.openCards['cy_'+r.refCycle.id];
+      menuItems.push({label: expanded?'收起本轮任务':'展开本轮任务', onClick:()=>{ ui.openCards['cy_'+r.refCycle.id]=!expanded; render(); }});
+    } else if(r.kind==='projectNext'){
+      menuItems.push({label:'查看项目详情', onClick:()=>{ ui.tab='projects'; ui.openCards['pj_'+r.refProject.id]=true; render(); }});
+    }
+    row.querySelector('[data-rowbtns]').prepend(renderRowMenu(menuItems));
+  },0);
+  return row;
+}
+
+function renderAdhocRow(r, movable){
+  const editKey = 'editrow_' + r.key;
+  const editing = !!ui.openCards[editKey];
+  const inst = r.refInstance;
+  const row = el(`<div class="row"></div>`);
+  if(editing){
+    const box = el(`<div class="top" style="flex-direction:column;align-items:stretch;gap:6px;"></div>`);
+    row.appendChild(box);
+    const titleInp = el(`<input type="text" value="${inst.title.replace(/"/g,'&quot;')}" placeholder="事项名称" style="padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);">`);
+    box.appendChild(titleInp);
+    const whoInp = el(`<input type="text" list="globalStkList" value="${(inst.stakeholder||'').replace(/"/g,'&quot;')}" placeholder="需求方（可下拉选择，也可输入新的）" style="padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);">`);
+    box.appendChild(whoInp);
+    const dtWrap = el(`<div></div>`); box.appendChild(dtWrap);
+    const dtPicker = renderDateTimePicker({date:inst.dueDate||'', time:inst.time||'', noTime:!!inst.noTime}, ()=>{});
+    dtWrap.appendChild(dtPicker);
+    const recWrap = el(`<div></div>`); box.appendChild(recWrap);
+    const recPicker = renderRecurrencePicker(inst.repeat||null, ()=>{}, false);
+    recWrap.appendChild(recPicker);
+    const projInp = el(`<input type="text" list="globalProjList" placeholder="所属项目（可选，库里已有的项目/周期事项名会自动关联，没有的话可手动输入新名字）" style="padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);">`);
+    box.appendChild(projInp);
+    const createProjWrap = el(`<label class="checkline" style="display:none;"><input type="checkbox" checked> 项目库中没有这个名字，勾选则创建为新项目</label>`);
+    box.appendChild(createProjWrap);
+    const createProjChk = createProjWrap.querySelector('input');
+    projInp.oninput = ()=>{
+      const matched = matchProjectByName(projInp.value);
+      createProjWrap.style.display = (!matched && projInp.value.trim()) ? 'flex' : 'none';
+    };
+    const btnRow = el(`<div class="btnrow" style="justify-content:flex-start;">
+      <button class="btn ghost sm" data-cancel>取消</button>
+      <button class="btn ghost sm" data-del style="color:var(--danger);">删除</button>
+      <button class="btn primary sm" data-save style="margin-left:auto;">保存</button>
+    </div>`);
+    box.appendChild(btnRow);
+    btnRow.querySelector('[data-cancel]').onclick = ()=>{ ui.openCards[editKey]=false; render(); };
+    btnRow.querySelector('[data-del]').onclick = ()=>{
+      if(confirm('确定删除这个事项吗？')){ S.instances = S.instances.filter(x=>x.id!==inst.id); persist('instances'); render(); }
+    };
+    btnRow.querySelector('[data-save]').onclick = ()=>{
+      const title = titleInp.value.trim();
+      if(!title){ alert('名称不能为空'); return; }
+      const dtVal = dtPicker.getValue();
+      const projectText = projInp.value.trim();
+      const linkTo = matchProjectByName(projectText);
+      if(linkTo){
+        const [kind, id] = linkTo.split(':');
+        const stepObj = { id:uid(), content:title, date: dtVal.date||null, time: dtVal.noTime?null:(dtVal.time||null), noTime: !!dtVal.noTime, status:'todo' };
+        if(kind==='project'){
+          const p = S.projects.find(x=>x.id===id);
+          if(p){ p.steps = p.steps||[]; p.steps.push({...stepObj, repeat: recPicker.getRec()}); persist('projects'); }
+        } else if(kind==='recurring'){
+          const t = S.templates.find(x=>x.id===id);
+          const cyc = t ? currentCycleFor(t) : null;
+          if(cyc){ cyc.steps.push({...stepObj, date: stepObj.date||todayStr(), stepDefId:null, reminder:true}); persist('cycles'); }
+        }
+        S.instances = S.instances.filter(x=>x.id!==inst.id);
+        persist('instances');
+      } else if(projectText && createProjChk.checked){
+        S.projects.push({
+          id:uid(), name:projectText, stakeholder:whoInp.value.trim(), deadline:dtVal.date||null, status:'进行中', createdAt:Date.now(),
+          steps:[{id:uid(), content:title, date:dtVal.date||null, time:dtVal.noTime?null:(dtVal.time||null), noTime:!!dtVal.noTime, status:'todo', repeat:recPicker.getRec()}],
+          takeaways:[]
+        });
+        S.instances = S.instances.filter(x=>x.id!==inst.id);
+        persist('projects'); persist('instances');
+      } else {
+        inst.title = title;
+        inst.stakeholder = whoInp.value.trim();
+        inst.dueDate = dtVal.date || null;
+        inst.time = dtVal.noTime? null : (dtVal.time||null);
+        inst.noTime = !!dtVal.noTime;
+        inst.repeat = recPicker.getRec();
+        persist('instances');
+      }
+      ui.openCards[editKey] = false;
+      render();
+    };
+    setTimeout(()=>titleInp.focus(),0);
+    return row;
+  }
+  const done = r.status==='done';
+  row.className = `row ${done?'done':''}`;
+  const timeTag = r.time && !r.noTime ? `<span class="tag time">${r.time}</span>` : (r.noTime?`<span class="tag time">无固定时间</span>`:'');
+  const overdueTag = r.overdueDays? `<span class="tag overdue">已逾期${r.overdueDays}天</span>` : '';
+  const whoTag = r.stakeholder? `<span class="tag who">${r.stakeholder}</span>` : '';
+  const repeatTxt = inst.repeat? ` <span class="muted" style="font-size:11px;">${repeatLabel(inst.repeat)}</span>` : '';
+  row.innerHTML = `
+    <div class="top">
+      <button class="chk ${done?'done':''}" data-key="${r.key}">${done?'✓':''}</button>
+      <div class="body">
+        <div class="title" data-clickedit="1" style="cursor:text;">${r.title}${repeatTxt}</div>
+        <div class="meta">${catTagHtml(r.category)}${timeTag}${overdueTag}${whoTag}</div>
+      </div>
+      <div class="rowbtns" data-rowbtns="1">
+        ${movable? `<span class="draghandle" title="拖拽调整顺序">⠿</span>`:''}
+      </div>
+    </div>
+  `;
+  if(movable){
+    row.draggable = true;
+    row.dataset.rowkey = r.key;
+    row.addEventListener('dragstart', (e)=>{ dragState.key = r.key; row.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', r.key); }catch(_){} });
+    row.addEventListener('dragend', ()=>{ row.classList.remove('dragging'); dragState.key=null; });
+    row.addEventListener('dragover', (e)=>{ e.preventDefault(); row.classList.add('dragover'); });
+    row.addEventListener('dragleave', ()=>{ row.classList.remove('dragover'); });
+    row.addEventListener('drop', (e)=>{
+      e.preventDefault(); row.classList.remove('dragover');
+      const fromKey = dragState.key;
+      if(!fromKey || fromKey===r.key) return;
+      reorderTodayRows(fromKey, r.key);
+    });
+  }
+  setTimeout(()=>{
+    row.querySelector('.chk').onclick = ()=> toggleRow(r);
+    row.querySelector('[data-clickedit]').onclick = ()=>{ ui.openCards[editKey]=true; render(); };
+    row.querySelector('[data-rowbtns]').prepend(renderRowMenu([
+      {label:'💡 记录经验', onClick:()=> quickAddTakeawayFor('name', inst.title, inst.title)}
+    ]));
+  },0);
+  return row;
+}
+let dragState = { key:null };
+function reorderTodayRows(fromKey, toKey){
+  const rows = sortRows(applyWhoFilter(buildRowsForDate(todayStr())), true);
+  let order = rows.map(r=>r.key);
+  const fromI = order.indexOf(fromKey), toI = order.indexOf(toKey);
+  if(fromI<0 || toI<0) return;
+  order.splice(fromI,1);
+  order.splice(toI,0,fromKey);
+  S.todayOrder = {date:todayStr(), order};
+  persist('todayOrder'); render();
+}
+function renderChain(cycle, template){
+  const wrap = el(`<div class="chain"></div>`);
+  cycle.steps.forEach(st=>{
+    const item = renderCheckpointItem(st, {
+      allowSkip: true,
+      onToggleDone: ()=>{ st.status = st.status==='done'?'todo':'done'; persist('cycles'); render(); },
+      onAddTakeaway: ()=> quickAddTakeawayFor('template', template, st.content, st.stepDefId),
+      takeawayList: template.takeaways,
+      takeawayStepId: st.stepDefId,
+      onSave: ({content, dtVal, skipped})=>{
+        st.content = content;
+        if(dtVal.date) st.date = dtVal.date;
+        st.time = dtVal.noTime? null : (dtVal.time||null);
+        st.noTime = !!dtVal.noTime;
+        st.skipped = skipped;
+        persist('cycles'); render();
+      }
+    });
+    wrap.appendChild(item);
+  });
+  return wrap;
+}
+function renderRowMenu(items){
+  const wrap = el(`<div class="newmenu" style="position:relative;"></div>`);
+  wrap.innerHTML = `<button class="iconbtn rowmenu-btn" title="更多">⋯</button><div class="popover" style="display:none;right:0;"></div>`;
+  const btn = wrap.querySelector('button');
+  const pop = wrap.querySelector('.popover');
+  pop.innerHTML = items.map((it,i)=>`<button data-idx="${i}">${it.label}</button>`).join('');
+  btn.onclick = (e)=>{ e.stopPropagation(); document.querySelectorAll('.popover').forEach(p=>{ if(p!==pop) p.style.display='none'; }); pop.style.display = pop.style.display==='none'?'block':'none'; };
+  pop.querySelectorAll('[data-idx]').forEach((b,i)=>{ b.onclick=(e)=>{ e.stopPropagation(); pop.style.display='none'; items[i].onClick(); }; });
+  document.addEventListener('click', ()=>{ pop.style.display='none'; });
+  return wrap;
+}
+
+function toggleRow(r){
+  const nowDone = r.status!=='done';
+  if(r.kind==='recurringStep'){ r.refStep.status = nowDone?'done':'todo'; persist('cycles'); }
+  else if(r.kind==='adhoc'){ r.refInstance.status = nowDone?'done':'todo'; persist('instances'); }
+  else if(r.kind==='projectNext'){ r.refStep.status = nowDone?'done':'todo'; persist('projects'); }
+  if(nowDone) promptTakeaway(r); else render();
+}
+function promptTakeaway(r){
+  promptTakeawayGeneric(
+    (entry)=>{
+      if(r.kind==='recurringStep'){ entry.stepId = r.refStep.stepDefId||null; r.refTemplate.takeaways=r.refTemplate.takeaways||[]; r.refTemplate.takeaways.push(entry); persist('templates'); }
+      else if(r.kind==='projectNext'){ entry.stepId = r.refStep.id||null; r.refProject.takeaways=r.refProject.takeaways||[]; r.refProject.takeaways.push(entry); persist('projects'); }
+      else if(r.kind==='adhoc'){ const name=r.refInstance.title; S.takeawaysByName[name]=S.takeawaysByName[name]||[]; S.takeawaysByName[name].push(entry); persist('takeawaysByName'); }
+    },
+    ()=>{
+      if(r.kind==='adhoc' && r.refInstance.repeat){
+        const next = nextRepeatDate(r.refInstance.repeat, r.refInstance.dueDate||todayStr());
+        if(next){ r.refInstance.dueDate = next; r.refInstance.status='todo'; persist('instances'); }
+      }
+      render();
+    }
+  );
+}
+function promptTakeawayGeneric(onSaveEntry, onDone){
+  const overlay = el(`<div class="overlay"></div>`);
+  overlay.innerHTML = `<div class="modal" style="max-width:420px;">
+    <h2>做完了 👍</h2>
+    <div class="field"><label>这次有什么值得记录的经验或坑？（可跳过）</label><textarea id="taText" placeholder="例如：这次因为会议室提前被占用，下次提前一天锁定"></textarea></div>
+    <div class="field"><label>标签（可选，逗号分隔）</label><input type="text" id="taTags" placeholder="时间管理, 沟通协调"></div>
+    <div class="btnrow"><button class="btn ghost" id="taSkip">跳过</button><button class="btn jade" id="taSave">保存经验</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#taSkip').onclick = ()=>{ overlay.remove(); onDone(); };
+  overlay.querySelector('#taSave').onclick = ()=>{
+    const content = overlay.querySelector('#taText').value.trim();
+    const tags = overlay.querySelector('#taTags').value.split(',').map(s=>s.trim()).filter(Boolean);
+    if(content) onSaveEntry({id:uid(), content, tags, createdAt:Date.now()});
+    overlay.remove(); onDone();
+  };
+}
+async function triggerQuickAI(text){
+  showToast('AI 解析中…');
+  try{
+    const drafts = await aiParse(text);
+    S.raw.push({id:uid(), text, result:drafts, createdAt:Date.now()});
+    persist('raw');
+    openConfirmCards(drafts.length? drafts : [blankDraft(text)]);
+  }catch(err){
+    showToast('AI 解析失败，已切换为手动确认（'+err.message+'）');
+    openQuickAddConfirm(text);
+  }
+}
+function openQuickAddConfirm(title){
+  const overlay = el(`<div class="overlay"></div>`);
+  overlay.innerHTML = `<div class="modal" style="max-width:480px;">
+    <h2>确认添加</h2>
+    <div class="field"><label>事项名称</label><input type="text" id="qcTitle" value="${title.replace(/"/g,'&quot;')}"></div>
+    <div class="field"><label>需求方（可下拉选择，也可以直接输入新的）</label><input type="text" list="globalStkList" id="qcWho" placeholder="谁委托的"></div>
+    <div class="field"><label>日期/时间</label><div id="qcDtWrap"></div></div>
+    <div class="field"><label>是否循环</label><div id="qcRecWrap"></div></div>
+    <div class="field"><label>所属项目（可选，库里已有的项目/周期事项名会自动关联；没有的话可以直接手动输入新名字）</label>
+      <input type="text" list="globalProjList" id="qcProject" placeholder="不填则作为普通日常事项">
+    </div>
+    <div class="checkline" id="qcCreateProjWrap" style="display:none;">
+      <label><input type="checkbox" id="qcCreateProj" checked> 项目库中没有这个名字，勾选则创建为新项目</label>
+    </div>
+    <div class="btnrow"><button class="btn ghost" id="qcCancel">取消</button><button class="btn primary" id="qcSave">添加</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  const dtPicker = renderDateTimePicker({date:todayStr(), time:'', noTime:true}, ()=>{});
+  overlay.querySelector('#qcDtWrap').appendChild(dtPicker);
+  const recPicker = renderRecurrencePicker(null, ()=>{}, false);
+  overlay.querySelector('#qcRecWrap').appendChild(recPicker);
+  const titleInp = overlay.querySelector('#qcTitle');
+  setTimeout(()=>titleInp.focus(),0);
+  const qcProjectInp = overlay.querySelector('#qcProject');
+  const qcCreateWrap = overlay.querySelector('#qcCreateProjWrap');
+  qcProjectInp.oninput = ()=>{
+    const matched = matchProjectByName(qcProjectInp.value);
+    qcCreateWrap.style.display = (!matched && qcProjectInp.value.trim()) ? 'flex' : 'none';
+  };
+  overlay.querySelector('#qcCancel').onclick = ()=>overlay.remove();
+  overlay.querySelector('#qcSave').onclick = ()=>{
+    const finalTitle = titleInp.value.trim();
+    if(!finalTitle){ alert('事项名称不能为空'); return; }
+    const stakeholder = overlay.querySelector('#qcWho').value.trim();
+    const dtVal = dtPicker.getValue();
+    const repeatVal = recPicker.getRec();
+    const projectText = qcProjectInp.value.trim();
+    const createProj = overlay.querySelector('#qcCreateProj').checked;
+    const linkTo = matchProjectByName(projectText);
+    if(linkTo){
+      const [kind, id] = linkTo.split(':');
+      const stepObj = {
+        id:uid(), content:finalTitle,
+        date: dtVal.date || todayStr(), time: dtVal.noTime? null : (dtVal.time||null), noTime: !!dtVal.noTime,
+        status:'todo'
+      };
+      if(kind==='project'){
+        const p = S.projects.find(x=>x.id===id);
+        if(p){ p.steps = p.steps||[]; p.steps.push({...stepObj, repeat: repeatVal}); persist('projects'); }
+      } else if(kind==='recurring'){
+        const t = S.templates.find(x=>x.id===id);
+        const cyc = t ? currentCycleFor(t) : null;
+        if(cyc){ cyc.steps.push({...stepObj, stepDefId:null, reminder:true}); persist('cycles'); }
+      }
+    } else if(projectText && createProj){
+      S.projects.push({
+        id:uid(), name:projectText, stakeholder, deadline:dtVal.date||null, status:'进行中', createdAt:Date.now(),
+        steps:[{id:uid(), content:finalTitle, date:dtVal.date||null, time:dtVal.noTime?null:(dtVal.time||null), noTime:!!dtVal.noTime, status:'todo', repeat:repeatVal}],
+        takeaways:[]
+      });
+      persist('projects');
+    } else {
+      S.instances.push({
+        id:uid(), title:finalTitle, stakeholder,
+        dueDate: dtVal.date || todayStr(), time: dtVal.noTime? null : (dtVal.time||null), noTime: !!dtVal.noTime,
+        repeat: repeatVal, status:'todo', createdAt:Date.now()
+      });
+      persist('instances');
+    }
+    overlay.remove(); render();
+  };
+}
+
+function openTakeawayQuickAdd(onSave, contextLabel){
+  const overlay = el(`<div class="overlay"></div>`);
+  overlay.innerHTML = `<div class="modal" style="max-width:420px;">
+    <h2>记录经验${contextLabel? ` <span class="muted" style="font-size:13px;font-weight:400;">· ${contextLabel}</span>`:''}</h2>
+    <div class="field"><label>内容</label><textarea id="qaText" placeholder="这次踩的坑、或者一个小技巧..."></textarea></div>
+    <div class="field"><label>标签（可选，逗号分隔）</label><input type="text" id="qaTags" placeholder="时间管理, 沟通协调"></div>
+    <div class="btnrow"><button class="btn ghost" id="qaCancel">取消</button><button class="btn jade" id="qaSave">保存</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#qaCancel').onclick = ()=>overlay.remove();
+  overlay.querySelector('#qaSave').onclick = ()=>{
+    const content = overlay.querySelector('#qaText').value.trim();
+    const tags = overlay.querySelector('#qaTags').value.split(',').map(s=>s.trim()).filter(Boolean);
+    if(content){ onSave({id:uid(), content, tags, createdAt:Date.now(), stepLabel:contextLabel||''}); overlay.remove(); render(); }
+    else overlay.remove();
+  };
+}
+function quickAddTakeawayFor(kind, ref, stepLabel, stepId){
+  openTakeawayQuickAdd((entry)=>{
+    entry.stepId = stepId || null;
+    if(kind==='template'){ ref.takeaways=ref.takeaways||[]; ref.takeaways.push(entry); persist('templates'); }
+    else if(kind==='project'){ ref.takeaways=ref.takeaways||[]; ref.takeaways.push(entry); persist('projects'); }
+    else if(kind==='name'){ S.takeawaysByName[ref]=S.takeawaysByName[ref]||[]; S.takeawaysByName[ref].push(entry); persist('takeawaysByName'); }
+  }, stepLabel);
+}
+/* ---- reusable checkpoint row: click the text to edit in place, no modal ---- */
+function renderCheckpointItem(st, opts){
+  const editKey = 'editstep_' + st.id;
+  const editing = !!ui.openCards[editKey];
+  const outer = el(`<div></div>`);
+  const item = el(`<div class="chain-item ${st.status==='done'&&!editing?'sdone':''}" style="${st.skipped&&!editing?'opacity:.5;':''}"></div>`);
+  outer.appendChild(item);
+  if(!editing){
+    item.innerHTML = `
+      <div class="dot ${st.status==='done'?'done':''}"></div>
+      <div class="stxt" data-clickedit="1" style="cursor:text;">${st.content}${st.repeat?` <span class="muted" style="font-size:11px;">${repeatLabel(st.repeat)}</span>`:''}${st.skipped?' <span class="tag overdue">已跳过</span>':''}</div>
+      <div class="stime mono">${st.date? st.date.slice(5):''} ${st.time||''}</div>
+      <button class="iconbtn" title="记录经验" style="margin-left:2px;">💡+</button>
+    `;
+    item.querySelector('.dot').onclick = opts.onToggleDone;
+    item.querySelector('[data-clickedit]').onclick = ()=>{ ui.openCards[editKey]=true; render(); };
+    item.querySelector('.iconbtn').onclick = opts.onAddTakeaway;
+    if(opts.takeawayList){
+      const tag = stepTakeawayTag(opts.takeawayList, opts.takeawayStepId);
+      if(tag) item.querySelector('.stxt').appendChild(tag);
+      const expanded = stepTakeawayExpanded(opts.takeawayList, opts.takeawayStepId);
+      if(expanded) outer.appendChild(expanded);
+    }
+  } else {
+    item.style.flexDirection = 'column';
+    item.style.alignItems = 'stretch';
+    item.style.padding = '8px 0';
+    const contentInp = el(`<input type="text" value="${(st.content||'').replace(/"/g,'&quot;')}" style="padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);width:100%;">`);
+    item.appendChild(contentInp);
+    const dtWrap = el(`<div style="margin-top:6px;"></div>`);
+    item.appendChild(dtWrap);
+    const dtPicker = renderDateTimePicker({date:st.date||'', time:st.time||'', noTime:!!st.noTime}, ()=>{});
+    dtWrap.appendChild(dtPicker);
+    let recPicker = null;
+    if(opts.allowRepeat){
+      const recWrap = el(`<div style="margin-top:6px;"></div>`);
+      item.appendChild(recWrap);
+      recPicker = renderRecurrencePicker(st.repeat||null, ()=>{}, false);
+      recWrap.appendChild(recPicker);
+    }
+    let skipCb = null;
+    if(opts.allowSkip){
+      const skipWrap = el(`<label class="checkline" style="margin-top:6px;"><input type="checkbox" ${st.skipped?'checked':''}> 跳过本次（不在待办中显示）</label>`);
+      skipCb = skipWrap.querySelector('input');
+      item.appendChild(skipWrap);
+    }
+    const btnRow = el(`<div class="btnrow" style="margin-top:8px;justify-content:flex-start;">
+      <button class="btn ghost sm" data-cancel>取消</button>
+      ${opts.onDelete? `<button class="btn ghost sm" data-del style="color:var(--danger);">删除</button>`:''}
+      <button class="btn primary sm" data-save style="margin-left:auto;">保存</button>
+    </div>`);
+    item.appendChild(btnRow);
+    btnRow.querySelector('[data-cancel]').onclick = ()=>{ ui.openCards[editKey]=false; render(); };
+    if(opts.onDelete) btnRow.querySelector('[data-del]').onclick = ()=>{
+      if(confirm('确定删除这个检查点吗？')){ ui.openCards[editKey]=false; opts.onDelete(); }
+    };
+    btnRow.querySelector('[data-save]').onclick = ()=>{
+      const content = contentInp.value.trim();
+      if(!content){ alert('内容不能为空'); return; }
+      const dtVal = dtPicker.getValue();
+      const repeatVal = recPicker ? recPicker.getRec() : undefined;
+      const skipped = skipCb ? skipCb.checked : undefined;
+      ui.openCards[editKey] = false;
+      opts.onSave({content, dtVal, repeatVal, skipped});
+    };
+    setTimeout(()=>contentInp.focus(),0);
+  }
+  return outer;
+}
+
+function stepTakeawayTag(list, stepId){
+  const filtered = (list||[]).filter(e=>e.stepId && e.stepId===stepId);
+  if(!filtered.length) return null;
+  const key = 'ta_step_'+stepId;
+  const btn = el(`<span class="tag takeaway-tag" style="cursor:pointer;">💡 历史经验（${filtered.length}）</span>`);
+  btn.onclick = (e)=>{ e.stopPropagation(); ui.openCards[key] = !ui.openCards[key]; render(); };
+  return btn;
+}
+function stepTakeawayExpanded(list, stepId){
+  const filtered = (list||[]).filter(e=>e.stepId && e.stepId===stepId);
+  const key = 'ta_step_'+stepId;
+  if(!filtered.length || !ui.openCards[key]) return null;
+  const wrap = el(`<div class="takeaway-list" style="margin:6px 0 8px 0;"></div>`);
+  wrap.innerHTML = filtered.map(e=>`<div class="ta-item">${e.content}${e.tags&&e.tags.length?`<div class="ta-tags">${e.tags.map(t=>`<span>${t}</span>`).join('')}</div>`:''}</div>`).join('');
+  return wrap;
+}
+function nextRepeatDate(rec, fromDateStr){
+  if(!rec) return fromDateStr;
+  const from = parseDate(fromDateStr || todayStr());
+  const searchStart = addDays(from, 1);
+  const searchEnd = addDays(from, 400);
+  const results = generateAnchorsInWindow(rec, searchStart, searchEnd);
+  return results.length ? results[0] : null; // null = series exhausted (hit end date/count)
+}
+function repeatLabel(rec){
+  if(!rec) return '';
+  return '🔁 '+recurrenceSummary(rec);
+}
+function takeawayBlock(kind, keyOrName, list){
+  const wrap = el(`<div></div>`);
+  const id = 'ta_'+kind+'_'+String(keyOrName).replace(/\s/g,'_');
+  wrap.innerHTML = `<button class="takeaway-toggle" data-tatoggle="1">💡 历史经验（${list.length}）</button>
+    <div class="takeaway-list" id="${id}" style="display:${ui.openCards[id]?'block':'none'};">
+      ${list.length? list.map(e=>`<div class="ta-item">${e.content}${e.tags&&e.tags.length?`<div class="ta-tags">${e.tags.map(t=>`<span>${t}</span>`).join('')}</div>`:''}</div>`).join('') : '<span class="muted">暂无记录</span>'}
+    </div>`;
+  setTimeout(()=>{ wrap.querySelector('[data-tatoggle]').onclick = ()=>{ ui.openCards[id]=!ui.openCards[id]; render(); }; },0);
+  return wrap;
+}
+
+/* ============ 经验 (aggregated takeaways) tab ============ */
+function collectAllTakeaways(){
+  const list = [];
+  S.templates.forEach(t=> (t.takeaways||[]).forEach(e=> list.push({...e, source:t.name, sourceKind:'周期事项', sourceId:t.id, navKind:'recurring'})));
+  S.projects.forEach(p=> (p.takeaways||[]).forEach(e=> list.push({...e, source:p.name, sourceKind:'项目', sourceId:p.id, navKind:'project'})));
+  Object.keys(S.takeawaysByName).forEach(name=> (S.takeawaysByName[name]||[]).forEach(e=> list.push({...e, source:'按需事项经验归档', sourceKind:'按需事项', sourceId:'adhoc_all', navKind:'name', stepLabel: e.stepLabel||name})));
+  return list.sort((a,b)=>b.createdAt-a.createdAt);
+}
+function renderTakeawaysTab(){
+  const wrap = el(`<div></div>`);
+  const all = collectAllTakeaways();
+  const tagSet = new Set(); all.forEach(e=>(e.tags||[]).forEach(t=>tagSet.add(t)));
+  const bySource = {}; all.forEach(e=>{ const k=e.sourceKind+':'+e.sourceId; bySource[k]=(bySource[k]||0)+1; });
+  wrap.innerHTML = `<div class="filterbar">
+    <select id="taTagFilter"><option value="">全部标签（共 ${all.length} 条经验 · ${Object.keys(bySource).length} 个来源）</option>${[...tagSet].map(t=>`<option value="${t}" ${ui.taTagFilter===t?'selected':''}>${t}</option>`).join('')}</select>
+    <input type="text" id="taSearch" placeholder="搜索经验内容..." value="${(ui.taSearch||'').replace(/"/g,'&quot;')}" style="flex:1;max-width:280px;padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
+  </div>
+  <div id="taGroups"></div>`;
+  const groupsContainer = wrap.querySelector('#taGroups');
+  function refresh(){
+    groupsContainer.innerHTML = '';
+    let filtered = collectAllTakeaways();
+    if(ui.taTagFilter) filtered = filtered.filter(e=>(e.tags||[]).includes(ui.taTagFilter));
+    if(ui.taSearch) filtered = filtered.filter(e=>e.content.includes(ui.taSearch));
+    if(!filtered.length){
+      groupsContainer.appendChild(el(`<div class="empty"><b>没有匹配的经验记录</b>完成任务时会提示记录，或者随时点检查点旁的 💡+ 按钮记一条。</div>`));
+      return;
+    }
+    const groups = {};
+    filtered.forEach(e=>{
+      const key = e.sourceKind+':'+e.sourceId;
+      if(!groups[key]) groups[key] = {sourceKind:e.sourceKind, source:e.source, sourceId:e.sourceId, navKind:e.navKind, entries:[]};
+      groups[key].entries.push(e);
+    });
+    const groupList = Object.values(groups).sort((a,b)=> b.entries[0].createdAt - a.entries[0].createdAt);
+    groupList.forEach(g=>{
+      const openKey = 'tag_'+g.sourceKind+g.sourceId;
+      const open = !!ui.openCards[openKey];
+      const sourceCls = g.sourceKind==='周期事项'?'cat-recurring':(g.sourceKind==='项目'?'cat-project':'cat-adhoc');
+      const card = el(`<div class="libcard ${open?'open':''}"></div>`);
+      card.innerHTML = `
+        <div class="lh">
+          <span class="car">▸</span><h3>${g.source}</h3>
+          <span class="tag ${sourceCls}">${g.sourceKind}</span>
+          <span class="muted mono" style="font-size:11px;">${g.entries.length} 条经验</span>
+          ${g.navKind!=='name'? `<button class="btn ghost sm" data-navto="1" style="margin-left:auto;">查看事项</button>`:''}
+        </div>
+        <div class="detail"></div>
+      `;
+      const detail = card.querySelector('.detail');
+      g.entries.forEach(e=>{
+        const item = el(`<div style="padding:8px 0;border-bottom:1px solid var(--line-soft);"></div>`);
+        item.innerHTML = `<div style="font-size:13px;">${e.content}</div>
+          <div class="meta" style="margin-top:4px;">
+            ${e.stepLabel && e.stepLabel!==g.source? `<span class="tag time">${e.stepLabel}</span>`:''}
+            ${(e.tags||[]).map(t=>`<span class="tag" style="background:var(--jade-soft);color:var(--jade);">${t}</span>`).join('')}
+            <span class="muted mono" style="font-size:10px;margin-left:auto;">${new Date(e.createdAt).toLocaleDateString('zh-CN')}</span>
+          </div>`;
+        detail.appendChild(item);
+      });
+      card.querySelector('.lh').onclick = (e)=>{
+        if(e.target.closest('[data-navto]')) return;
+        ui.openCards[openKey] = !ui.openCards[openKey];
+        card.classList.toggle('open', ui.openCards[openKey]);
+      };
+      const navBtn = card.querySelector('[data-navto]');
+      if(navBtn) navBtn.onclick = (e)=>{
+        e.stopPropagation();
+        ui.tab = 'projects';
+        if(g.navKind==='project') ui.openCards['pj_'+g.sourceId] = true;
+        else if(g.navKind==='recurring') ui.openCards['tp_'+g.sourceId] = true;
+        render();
+      };
+      groupsContainer.appendChild(card);
+    });
+  }
+  setTimeout(()=>{
+    document.getElementById('taTagFilter').onchange = e=>{ ui.taTagFilter = e.target.value; refresh(); };
+    document.getElementById('taSearch').oninput = e=>{ ui.taSearch = e.target.value; refresh(); };
+    refresh();
+  },0);
+  return wrap;
+}
+
+/* ============ unified 项目 tab (projects + recurring templates) ============ */
+function renderUnifiedProjects(){
+  const wrap = el(`<div></div>`);
+  wrap.innerHTML = `<div class="filterbar">
+      <span class="daypill">项目制与周期性事项统一管理</span>
+      <div class="newmenu" style="margin-left:auto;">
+        <button class="btn primary sm" id="newLibBtn">+ 新建</button>
+        <div class="popover" id="newLibPop" style="display:none;">
+          <button data-choice="project">新建项目事项</button>
+          <button data-choice="recurring">新建周期事项</button>
+        </div>
+      </div>
+    </div>`;
+  const items = [
+    ...S.projects.map(p=>({kind:'project', createdAt:p.createdAt, ref:p})),
+    ...S.templates.map(t=>({kind:'recurring', createdAt:t.createdAt, ref:t}))
+  ].sort((a,b)=>b.createdAt-a.createdAt);
+  if(!items.length) wrap.appendChild(el(`<div class="empty"><b>这里还是空的</b>点右上角"+新建"，创建一个项目或周期事项。</div>`));
+  items.forEach(it=>{
+    wrap.appendChild(it.kind==='project' ? renderProjectCard(it.ref) : renderRecurringCard(it.ref));
+  });
+  setTimeout(()=>{
+    const btn = document.getElementById('newLibBtn'), pop = document.getElementById('newLibPop');
+    btn.onclick = (e)=>{ e.stopPropagation(); pop.style.display = pop.style.display==='none'?'block':'none'; };
+    pop.querySelectorAll('[data-choice]').forEach(b=>{
+      b.onclick = ()=>{ pop.style.display='none'; if(b.dataset.choice==='project') openProjectForm(); else openTemplateForm(); };
+    });
+    document.addEventListener('click', ()=>{ if(pop) pop.style.display='none'; }, {once:true});
+  },0);
+  return wrap;
+}
+
+function renderProjectCard(p){
+  const open = !!ui.openCards['pj_'+p.id];
+  const editingMeta = !!ui.openCards['editprojmeta_'+p.id];
+  const card = el(`<div class="libcard ${open?'open':''}"></div>`);
+  const doneCount = (p.steps||[]).filter(s=>s.status==='done').length;
+  const lhHtml = editingMeta ? `
+    <div class="lh" style="flex-wrap:wrap;align-items:flex-start;cursor:default;">
+      <span class="car">▸</span>
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:220px;">
+        <input type="text" class="peName" value="${p.name.replace(/"/g,'&quot;')}" placeholder="项目名称" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);font-family:'Source Serif 4',serif;font-size:14.5px;">
+        <div class="inline" style="gap:6px;">
+          <input type="text" class="peWho" list="globalStkList" value="${(p.stakeholder||'').replace(/"/g,'&quot;')}" placeholder="需求方" style="flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
+          <input type="date" class="peDeadline" value="${p.deadline||''}" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
+        </div>
+        <div class="btnrow" style="justify-content:flex-start;margin-top:0;">
+          <button class="btn ghost sm" data-metacancel>取消</button>
+          <button class="btn primary sm" data-metasave>保存</button>
+        </div>
+      </div>
+    </div>` : `
+    <div class="lh" data-toggle="pj_${p.id}">
+      <span class="car">▸</span><h3 data-clickmeta="1" style="cursor:text;">${p.name}</h3>
+      <span class="tag cat-project">项目制</span>
+      <span class="tag who" data-clickmeta="1" style="cursor:text;">${p.stakeholder||'+ 需求方'}</span>
+      <span class="tag time" data-clickmeta="1" style="cursor:text;${p.deadline?'':'opacity:.5;'}">${p.deadline?`截止 ${p.deadline}`:'+ 截止日期'}</span>
+      ${p.status==='已结束'?'<span class="tag" style="background:var(--paper-dim);color:var(--muted);">已结束</span>':''}
+      <span class="muted mono" style="font-size:11px;">${doneCount}/${(p.steps||[]).length} 步骤</span>
+    </div>`;
+  card.innerHTML = lhHtml + `
+    <div class="detail">
+      <div class="chain" id="pjchain_${p.id}"></div>
+      <div class="addstepline" style="flex-wrap:wrap;align-items:center;gap:8px;">
+        <input type="text" placeholder="＋ 新增步骤/检查点内容..." data-newstep-content="${p.id}" style="flex:1;min-width:180px;">
+        <div id="newstepDtWrap_${p.id}"></div>
+        <div id="newstepRecWrap_${p.id}"></div>
+        <button class="btn ghost sm" data-addstepbtn="${p.id}">添加</button>
+      </div>
+      <div class="btnrow" style="justify-content:flex-start;margin-top:10px;">
+        <button class="btn ghost sm" data-endproj="${p.id}">${p.status==='已结束'?'重新激活':'标记为已结束'}</button>
+      </div>
+    </div>`;
+  let pendingStepRec = null;
+  let pendingStepDt = { date:'', time:'', noTime:false };
+  setTimeout(()=>{
+    if(!editingMeta){
+      card.querySelector('.lh').onclick = (e)=>{
+        if(e.target.closest('[data-clickmeta]')) return;
+        ui.openCards['pj_'+p.id]=!ui.openCards['pj_'+p.id]; render();
+      };
+      card.querySelectorAll('[data-clickmeta]').forEach(elm=>{
+        elm.onclick = (e)=>{ e.stopPropagation(); ui.openCards['editprojmeta_'+p.id]=true; render(); };
+      });
+    } else {
+      card.querySelector('[data-metacancel]').onclick = ()=>{ ui.openCards['editprojmeta_'+p.id]=false; render(); };
+      card.querySelector('[data-metasave]').onclick = ()=>{
+        const name = card.querySelector('.peName').value.trim();
+        if(!name){ alert('项目名称不能为空'); return; }
+        p.name = name;
+        p.stakeholder = card.querySelector('.peWho').value.trim();
+        p.deadline = card.querySelector('.peDeadline').value || null;
+        ui.openCards['editprojmeta_'+p.id]=false;
+        persist('projects'); render();
+      };
+    }
+    const dtPicker = renderDateTimePicker(null, (val)=>{ pendingStepDt = val; });
+    card.querySelector(`#newstepDtWrap_${p.id}`).appendChild(dtPicker);
+    const recPicker = renderRecurrencePicker(null, (rec)=>{ pendingStepRec = rec; }, false);
+    card.querySelector(`#newstepRecWrap_${p.id}`).appendChild(recPicker);
+    const chainEl = card.querySelector(`#pjchain_${p.id}`);
+    (p.steps||[]).forEach(st=>{
+      const item = renderCheckpointItem(st, {
+        allowRepeat: true,
+        onToggleDone: ()=>{
+          if(st.status!=='done'){
+            st.status='done'; persist('projects');
+            promptTakeawayGeneric(
+              (entry)=>{ entry.stepId = st.id; p.takeaways=p.takeaways||[]; p.takeaways.push(entry); persist('projects'); },
+              ()=>{
+                if(st.repeat){
+                  const next = nextRepeatDate(st.repeat, st.date);
+                  if(next){ st.date = next; st.status='todo'; } // else: series exhausted, stays done
+                  persist('projects');
+                }
+                render();
+              }
+            );
+          } else { st.status='todo'; persist('projects'); render(); }
+        },
+        onAddTakeaway: ()=> quickAddTakeawayFor('project', p, st.content, st.id),
+        takeawayList: p.takeaways,
+        takeawayStepId: st.id,
+        onDelete: ()=>{ p.steps = (p.steps||[]).filter(s=>s.id!==st.id); persist('projects'); render(); },
+        onSave: ({content, dtVal, repeatVal})=>{
+          st.content = content;
+          st.date = dtVal.date || null;
+          st.time = dtVal.noTime? null : (dtVal.time||null);
+          st.noTime = !!dtVal.noTime;
+          st.repeat = repeatVal;
+          persist('projects'); render();
+        }
+      });
+      chainEl.appendChild(item);
+    });
+    card.querySelector(`[data-addstepbtn="${p.id}"]`).onclick = ()=>{
+      const contentInp = card.querySelector(`[data-newstep-content="${p.id}"]`);
+      if(contentInp.value.trim()){
+        p.steps = p.steps||[];
+        if(pendingStepRec) pendingStepRec.rangeStart = pendingStepDt.date || todayStr();
+        p.steps.push({
+          id:uid(), content:contentInp.value.trim(),
+          date: pendingStepDt.date || null, time: pendingStepDt.noTime? null : (pendingStepDt.time || null),
+          repeat: pendingStepRec,
+          status:'todo'
+        });
+        persist('projects'); ui.openCards['pj_'+p.id]=true; render();
+      }
+    };
+    card.querySelector(`[data-endproj="${p.id}"]`).onclick = ()=>{ p.status = p.status==='已结束'?'进行中':'已结束'; persist('projects'); render(); };
+  },0);
+  return card;
+}
+
+function renderRecurringCard(t){
+  const open = !!ui.openCards['tp_'+t.id];
+  const editingMeta = !!ui.openCards['edittplmeta_'+t.id];
+  const card = el(`<div class="libcard ${open?'open':''}"></div>`);
+  const rec = t.recurrence || defaultRecurrence();
+  const freqLabel = {daily:'每天循环', weekly:'每周循环', monthly:'每月循环', yearly:'每年循环'}[rec.freq] || '循环';
+  const lhHtml = editingMeta ? `
+    <div class="lh" style="flex-wrap:wrap;align-items:flex-start;cursor:default;">
+      <span class="car">▸</span>
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:220px;">
+        <input type="text" class="teName" value="${t.name.replace(/"/g,'&quot;')}" placeholder="事项名称" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);font-family:'Source Serif 4',serif;font-size:14.5px;">
+        <input type="text" class="teWho" list="globalStkList" value="${(t.stakeholder||'').replace(/"/g,'&quot;')}" placeholder="需求方" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
+        <div class="btnrow" style="justify-content:flex-start;margin-top:0;">
+          <button class="btn ghost sm" data-metacancel>取消</button>
+          <button class="btn primary sm" data-metasave>保存</button>
+        </div>
+      </div>
+    </div>` : `
+    <div class="lh" data-toggle="tp_${t.id}">
+      <span class="car">▸</span><h3 data-clickmeta="1" style="cursor:text;">${t.name}</h3>
+      <span class="tag cat-recurring">${freqLabel}</span>
+      <span class="tag who" data-clickmeta="1" style="cursor:text;">${t.stakeholder||'+ 需求方'}</span>
+      <span class="muted mono" style="font-size:11px;">${t.steps.length} 步骤</span>
+    </div>`;
+  card.innerHTML = lhHtml + `
+    <div class="detail">
+      <div class="hint" style="margin-bottom:8px;">循环规则：${recurrenceSummary(rec)}</div>
+      <div class="hint" style="margin:12px 0 4px;">步骤定义（相对锚点日的天数偏移，负数=提前准备，正数=之后跟进）：</div>
+      <div id="tpsteps_${t.id}"></div>
+      <div class="btnrow" style="justify-content:flex-start;margin-top:10px;">
+        <button class="btn ghost sm" data-edittpl="${t.id}">编辑循环规则/步骤定义</button>
+      </div>
+    </div>`;
+  setTimeout(()=>{
+    if(!editingMeta){
+      card.querySelector('.lh').onclick = (e)=>{
+        if(e.target.closest('[data-clickmeta]')) return;
+        ui.openCards['tp_'+t.id]=!ui.openCards['tp_'+t.id]; render();
+      };
+      card.querySelectorAll('[data-clickmeta]').forEach(elm=>{
+        elm.onclick = (e)=>{ e.stopPropagation(); ui.openCards['edittplmeta_'+t.id]=true; render(); };
+      });
+    } else {
+      card.querySelector('[data-metacancel]').onclick = ()=>{ ui.openCards['edittplmeta_'+t.id]=false; render(); };
+      card.querySelector('[data-metasave]').onclick = ()=>{
+        const name = card.querySelector('.teName').value.trim();
+        if(!name){ alert('事项名称不能为空'); return; }
+        t.name = name;
+        t.stakeholder = card.querySelector('.teWho').value.trim();
+        ui.openCards['edittplmeta_'+t.id]=false;
+        persist('templates'); render();
+      };
+    }
+    const stepsEl = card.querySelector(`#tpsteps_${t.id}`);
+    t.steps.forEach(st=>{
+      const off = st.offsetDays||0;
+      const offTxt = off===0 ? '锚点当天' : (off>0 ? `锚点日+${off}天` : `锚点日${off}天`);
+      const item = el(`<div class="chain-item"><div class="dot"></div><div class="stxt">${st.content}</div><div class="stime mono">${offTxt} ${st.noTime?'无固定时间':(st.time||'')}</div><button class="iconbtn" title="记录经验" style="margin-left:2px;">💡+</button></div>`);
+      item.querySelector('.iconbtn').onclick = ()=> quickAddTakeawayFor('template', t, st.content, st.id);
+      const tag = stepTakeawayTag(t.takeaways, st.id);
+      if(tag) item.querySelector('.stxt').appendChild(tag);
+      stepsEl.appendChild(item);
+      const expanded = stepTakeawayExpanded(t.takeaways, st.id);
+      if(expanded) stepsEl.appendChild(expanded);
+    });
+    card.querySelector(`[data-edittpl="${t.id}"]`).onclick = ()=> openTemplateForm(t);
+  },0);
+  return card;
+}
+
+/* ============ project form ============ */
+function openProjectForm(existing){
+  const overlay = el(`<div class="overlay"></div>`);
+  overlay.innerHTML = `<div class="modal">
+    <h2>${existing?'编辑项目信息':'新建项目'}</h2>
+    <div class="field"><label>项目名称</label><input type="text" id="pName" value="${existing?existing.name:''}" placeholder="例如：投研工作AI开发"></div>
+    <div class="inline">
+      <div class="field"><label>需求方</label><input type="text" id="pWho" list="globalStkList" value="${existing?(existing.stakeholder||''):''}" placeholder="谁委托的"></div>
+      <div class="field"><label>截止时间（可选）</label><input type="date" id="pDeadline" value="${existing&&existing.deadline?existing.deadline:''}"></div>
+    </div>
+    <div class="btnrow"><button class="btn ghost" id="pCancel">取消</button><button class="btn primary" id="pSave">${existing?'保存':'创建'}</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#pCancel').onclick = ()=>overlay.remove();
+  overlay.querySelector('#pSave').onclick = ()=>{
+    const name = overlay.querySelector('#pName').value.trim();
+    if(!name) return;
+    if(existing){
+      existing.name = name;
+      existing.stakeholder = overlay.querySelector('#pWho').value.trim();
+      existing.deadline = overlay.querySelector('#pDeadline').value || null;
+    } else {
+      S.projects.push({id:uid(), name, stakeholder:overlay.querySelector('#pWho').value.trim(),
+        deadline:overlay.querySelector('#pDeadline').value||null, status:'进行中', createdAt:Date.now(), steps:[], takeaways:[]});
+    }
+    persist('projects'); overlay.remove(); ui.tab='projects'; render();
+  };
+}
+
+/* ============ recurring template form ============ */
+function openTemplateForm(existing){
+  const draft = existing
+    ? JSON.parse(JSON.stringify(existing))
+    : { name:'', stakeholder:'', recurrence:defaultRecurrence(), steps:[] };
+  if(!draft.recurrence) draft.recurrence = defaultRecurrence();
+  renderTemplateModal(draft, existing ? existing.id : null);
+}
+function renderTemplateModal(draft, editId){
+  const old = document.getElementById('tplOverlay'); if(old) old.remove();
+  const overlay = el(`<div class="overlay" id="tplOverlay"></div>`);
+  const rec = draft.recurrence;
+  overlay.innerHTML = `<div class="modal" style="max-width:640px;">
+    <h2>${editId?'编辑周期事项':'新建周期事项'}</h2>
+    <div class="inline">
+      <div class="field"><label>事项名称</label><input type="text" id="tName" value="${draft.name}" placeholder="例如：VC组周会组织与会后跟进"></div>
+      <div class="field"><label>需求方</label><input type="text" id="tWho" list="globalStkList" value="${draft.stakeholder}" placeholder="VC组"></div>
+    </div>
+
+    <div class="cardsplit">
+      <h3>循环周期（参考 Outlook 的"定期"设置）</h3>
+      <div id="recFieldsWrap"></div>
+    </div>
+
+    <div class="field"><label>步骤（每个步骤只需填「距锚点日几天」+ 时间；锚点日就是上面循环规则算出的那一天；正数=锚点日之后的跟进，负数=锚点日之前的准备工作，0=当天）</label><div id="stepList"></div>
+      <button class="btn ghost sm" id="addStepBtn" style="margin-top:6px;">+ 添加步骤</button>
+    </div>
+    <div class="btnrow"><button class="btn ghost" id="tCancel">取消</button><button class="btn primary" id="tSave">保存</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  const recWrap = overlay.querySelector('#recFieldsWrap');
+  recWrap.innerHTML = recurrenceFieldsHTML('rec', rec);
+  wireRecurrenceFields(recWrap, 'rec', rec, null);
+
+  function renderStepRows(){
+    const listEl = overlay.querySelector('#stepList'); listEl.innerHTML='';
+    draft.steps.forEach((st,i)=>{
+      const row = el(`<div class="cardsplit" style="padding:10px;margin-bottom:8px;"></div>`);
+      row.innerHTML = `
+        <div class="field"><label>步骤内容</label><input type="text" value="${st.content||''}" data-f="content" data-i="${i}" placeholder="例如：确认会议室设备与投屏..."></div>
+        <div class="inline">
+          <div class="field"><label>距锚点日天数（可负数，如 -2）</label><input type="number" min="-60" max="60" value="${st.offsetDays||0}" data-f="offsetDays" data-i="${i}"></div>
+          <div class="field"><label>时间</label><input type="time" value="${st.time||''}" data-f="time" data-i="${i}" ${st.noTime?'disabled':''}></div>
+        </div>
+        <div class="checkline"><label><input type="checkbox" data-f="noTime" data-i="${i}" ${st.noTime?'checked':''}> 无固定时间</label>
+        <label style="margin-left:10px;"><input type="checkbox" data-f="reminder" data-i="${i}" ${st.reminder!==false?'checked':''}> 需要提醒</label>
+        <button class="btn ghost sm" style="margin-left:auto;" data-delstep="${i}">删除步骤</button></div>
+      `;
+      listEl.appendChild(row);
+    });
+    listEl.querySelectorAll('[data-f]').forEach(inp=>{
+      inp.onchange = ()=>{
+        const i = +inp.dataset.i, f = inp.dataset.f;
+        let val = inp.type==='checkbox'? inp.checked : inp.value;
+        if(f==='offsetDays') val = Number(val);
+        draft.steps[i][f]=val;
+        if(f==='noTime') renderStepRows();
+      };
+    });
+    listEl.querySelectorAll('[data-delstep]').forEach(b=>{ b.onclick=()=>{ draft.steps.splice(+b.dataset.delstep,1); renderStepRows(); }; });
+  }
+  overlay.querySelector('#addStepBtn').onclick = ()=>{ draft.steps.push({content:'', offsetDays:0, time:'09:00', noTime:false, reminder:true}); renderStepRows(); };
+  renderStepRows();
+  overlay.querySelector('#tCancel').onclick = ()=>overlay.remove();
+  overlay.querySelector('#tSave').onclick = ()=>{
+    const name = overlay.querySelector('#tName').value.trim();
+    if(!name || !draft.steps.length){ alert('请填写事项名称并至少添加一个步骤'); return; }
+    if(rec.freq==='weekly' && !rec.weekdays.length){ alert('请至少勾选一个星期'); return; }
+    const stakeholder = overlay.querySelector('#tWho').value.trim();
+    if(editId){
+      const t = S.templates.find(x=>x.id===editId);
+      t.name=name; t.stakeholder=stakeholder; t.recurrence=rec;
+      t.steps = draft.steps.map(s=>({id:s.id||uid(), ...s}));
+    } else {
+      S.templates.push({ id:uid(), name, stakeholder, recurrence:rec,
+        steps: draft.steps.map(s=>({id:uid(), ...s})), takeaways:[], createdAt:Date.now() });
+    }
+    persist('templates'); overlay.remove(); ui.tab='projects'; render();
+  };
+}
+
+/* ============ settings ============ */
+function renderSettings(){
+  const wrap = el(`<div style="margin-top:16px;"></div>`);
+
+  // AI provider
+  const aiBlock = el(`<div class="settingsblock"></div>`);
+  aiBlock.innerHTML = `<h3>AI 解析</h3>
+    <div class="hint">快速录入时，用哪家 AI 来把你说的话拆解成结构化字段。<b>如果你是从网页链接打开这个工具（不是在 Claude 对话里预览），"内置 AI"这个选项无法使用</b>——那是 Claude 预览环境专属的能力，换个地方打开就会请求失败。想用 AI 解析的话请填自己的 DeepSeek Key；不填的话仍然可以用"手动创建"正常录入，不受影响。</div>
+    <div class="segwrap">
+      <button class="segbtn ${S.config.aiProvider==='deepseek'?'active':''}" data-aip="deepseek">DeepSeek</button>
+      <button class="segbtn ${S.config.aiProvider==='claude'?'active':''}" data-aip="claude">内置 AI（仅 Claude 预览环境内可用）</button>
+    </div>
+    <div class="field" style="margin-top:10px;" id="dsKeyWrap"><label>DeepSeek API Key</label>
+      <input type="password" id="dsKey" value="${S.config.deepseekKey}" placeholder="sk-...">
+      <div class="hint">Key 只会保存在这个工具本地的存储里，不会同步到云端数据表，请求会直接从你的浏览器发往 DeepSeek 官方接口。若未填写会自动改用内置 AI（网页环境下即解析失败，回退到手动创建）。</div>
+    </div>`;
+  wrap.appendChild(aiBlock);
+
+  // Cloud sync
+  const cloudBlock = el(`<div class="settingsblock"></div>`);
+  cloudBlock.innerHTML = `<h3>云端同步（Supabase）</h3>
+    <div class="hint">${(S.config.supabaseUrl && S.config.supabaseAnonKey) ? '下面这两项团队负责人已经预填好，你不用管，直接往下拉用邮箱+密码注册/登录就行。' : '填入团队的 Supabase 项目 URL 和 anon key（团队负责人提供，或在 Supabase 项目 Settings → API 里能找到）。'}然后用邮箱+密码登录（自己设的密码，不是邮箱密码）。登录后，所有事项数据会读写到团队的 Supabase 项目，不同设备用同一邮箱+密码登录即可同步；不同同事各自注册自己的邮箱，数据互相隔离。首次使用需要先在 Supabase 项目里建好数据表（见下方 SQL），并在 Authentication → Sign In/Providers → Email 里关闭"Confirm email"开关（这样注册后不需要收确认邮件就能直接用）。</div>
+    <div class="inline">
+      <div class="field"><label>Supabase Project URL</label><input type="text" id="sbUrl" value="${S.config.supabaseUrl}" placeholder="https://xxxx.supabase.co"></div>
+      <div class="field"><label>Supabase anon key</label><input type="password" id="sbKey" value="${S.config.supabaseAnonKey}" placeholder="anon public key"></div>
+    </div>
+    <div class="btnrow" style="justify-content:flex-start;"><button class="btn ghost sm" id="sbSaveCfg">保存连接信息</button></div>
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);">
+      <div><span class="statusdot ${cloudLoggedIn()?'on':'off'}"></span>${cloudLoggedIn()? `已登录：${S.config.userEmail}` : (cloudConfigured()? '未登录':'尚未配置 Supabase 连接信息')}</div>
+      ${!cloudLoggedIn()? `
+      <div class="inline" style="margin-top:8px;">
+        <div class="field"><label>邮箱</label><input type="email" id="loginEmail" placeholder="you@example.com"></div>
+        <div class="field"><label>密码（自己设定，至少6位）</label><input type="password" id="loginPassword" placeholder="设一个密码"></div>
+      </div>
+      <div class="btnrow" style="justify-content:flex-start;">
+        <button class="btn ghost sm" id="registerBtn">首次使用：注册</button>
+        <button class="btn primary sm" id="loginBtn">已注册过：登录</button>
+      </div>
+      ` : `
+      <div class="btnrow" style="justify-content:flex-start;margin-top:8px;">
+        <button class="btn ghost sm" id="reloadCloudBtn">重新从云端加载</button>
+        <button class="btn ghost sm" id="logoutBtn">退出登录</button>
+      </div>`}
+    </div>
+    <details style="margin-top:12px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">建表 SQL（首次使用，在 Supabase SQL Editor 里执行一次）</summary>
+    <pre style="background:var(--paper-dim);padding:10px;border-radius:7px;font-size:11px;overflow:auto;white-space:pre-wrap;">create table app_data (
+  user_id uuid references auth.users(id) not null,
+  key text not null,
+  value jsonb,
+  updated_at timestamptz default now(),
+  primary key (user_id, key)
+);
+alter table app_data enable row level security;
+create policy "own rows only" on app_data
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);</pre></details>
+  `;
+  wrap.appendChild(cloudBlock);
+
+  // dropdowns
+  const dd = el(`<div class="dropdownmgr"></div>`);
+  dd.innerHTML = `<h3 style="font-size:14px;margin-bottom:6px;">常用需求方</h3>
+    <div class="chipwrap" id="stkChips"></div>
+    <div class="addline"><input type="text" id="stkNew" placeholder="新增常用需求方..."><button class="btn ghost sm" id="stkAdd">添加</button></div>`;
+  wrap.appendChild(dd);
+  const dd2 = el(`<div class="dropdownmgr"></div>`);
+  dd2.innerHTML = `<h3 style="font-size:14px;margin-bottom:6px;">常用事项名称</h3>
+    <div class="chipwrap" id="nameChips"></div>
+    <div class="addline"><input type="text" id="nameNew" placeholder="新增常用事项名称..."><button class="btn ghost sm" id="nameAdd">添加</button></div>`;
+  wrap.appendChild(dd2);
+
+  // backup
+  const backup = el(`<div class="dropdownmgr"></div>`);
+  backup.innerHTML = `<h3 style="font-size:14px;margin-bottom:6px;">本地备份</h3>
+    <div class="hint">无论是否连了云端，都建议偶尔导出一份备份文件。</div>
+    <div class="btnrow" style="justify-content:flex-start;margin-top:8px;"><button class="btn ghost sm" id="exportBtn">导出备份 JSON</button>
+    <label class="btn ghost sm" style="display:inline-block;">导入备份<input type="file" id="importFile" accept="application/json" style="display:none;"></label></div>`;
+  wrap.appendChild(backup);
+
+  setTimeout(()=>{
+    aiBlock.querySelectorAll('[data-aip]').forEach(b=>{ b.onclick=()=>{ S.config.aiProvider=b.dataset.aip; saveConfig(); render(); }; });
+    const dsKeyInput = document.getElementById('dsKey');
+    dsKeyInput.onchange = ()=>{ S.config.deepseekKey = dsKeyInput.value.trim(); saveConfig(); };
+
+    document.getElementById('sbSaveCfg').onclick = ()=>{
+      S.config.supabaseUrl = document.getElementById('sbUrl').value.trim().replace(/\/$/,'');
+      S.config.supabaseAnonKey = document.getElementById('sbKey').value.trim();
+      saveConfig(); showToast('已保存连接信息'); render();
+    };
+    const registerBtn = document.getElementById('registerBtn');
+    if(registerBtn) registerBtn.onclick = async ()=>{
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      if(!email || !password){ showToast('请填写邮箱和密码'); return; }
+      if(!cloudConfigured()){ showToast('请先保存 Supabase 连接信息'); return; }
+      registerBtn.disabled = true;
+      try{
+        await signUpPassword(email, password);
+        showToast('注册并登录成功，正在从云端加载数据...');
+        await loadAll(); render();
+      }catch(e){ showToast('注册失败：'+e.message); }
+      registerBtn.disabled = false;
+    };
+    const loginBtn = document.getElementById('loginBtn');
+    if(loginBtn) loginBtn.onclick = async ()=>{
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      if(!email || !password){ showToast('请填写邮箱和密码'); return; }
+      if(!cloudConfigured()){ showToast('请先保存 Supabase 连接信息'); return; }
+      loginBtn.disabled = true;
+      try{
+        await signInPassword(email, password);
+        showToast('登录成功，正在从云端加载数据...');
+        await loadAll(); render();
+      }catch(e){ showToast('登录失败：'+e.message); }
+      loginBtn.disabled = false;
+    };
+    const reloadBtn = document.getElementById('reloadCloudBtn');
+    if(reloadBtn) reloadBtn.onclick = async ()=>{ await loadAll(); render(); showToast('已从云端刷新'); };
+    const logoutBtn = document.getElementById('logoutBtn');
+    if(logoutBtn) logoutBtn.onclick = async ()=>{ cloudLogout(); await loadAll(); render(); };
+
+    function renderChips(id, arr){
+      const c = document.getElementById(id); c.innerHTML='';
+      arr.forEach((v,i)=>{
+        const chip = el(`<div class="chip"><span data-chiplabel="1" style="cursor:text;">${v}</span><button data-del="${i}">✕</button></div>`);
+        chip.querySelector('button').onclick = ()=>{ arr.splice(i,1); persist('dropdowns'); render(); };
+        const label = chip.querySelector('[data-chiplabel]');
+        label.onclick = ()=>{
+          const inp = el(`<input type="text" value="${v.replace(/"/g,'&quot;')}" style="width:${Math.max(4,v.length)}ch;font:inherit;border:1px solid var(--line);border-radius:5px;padding:1px 4px;">`);
+          label.replaceWith(inp); inp.focus(); inp.select();
+          const commit = ()=>{ const nv=inp.value.trim(); if(nv) arr[i]=nv; persist('dropdowns'); render(); };
+          inp.onblur = commit;
+          inp.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); inp.blur(); } if(e.key==='Escape'){ inp.value=v; inp.blur(); } };
+        };
+        c.appendChild(chip);
+      });
+    }
+    renderChips('stkChips', S.dropdowns.stakeholders);
+    renderChips('nameChips', S.dropdowns.eventNames);
+    document.getElementById('stkAdd').onclick = ()=>{ const v=document.getElementById('stkNew').value.trim(); if(v){ S.dropdowns.stakeholders.push(v); persist('dropdowns'); render(); } };
+    document.getElementById('nameAdd').onclick = ()=>{ const v=document.getElementById('nameNew').value.trim(); if(v){ S.dropdowns.eventNames.push(v); persist('dropdowns'); render(); } };
+    document.getElementById('exportBtn').onclick = ()=>{
+      const exportable = {
+        templates:S.templates, projects:S.projects, instances:S.instances, cycles:S.cycles,
+        dropdowns:S.dropdowns, takeawaysByName:S.takeawaysByName, todayOrder:S.todayOrder, raw:S.raw
+      };
+      const blob = new Blob([JSON.stringify(exportable,null,2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download=`工作台账备份_${todayStr()}.json`; a.click();
+      URL.revokeObjectURL(url);
+    };
+    document.getElementById('importFile').onchange = (e)=>{
+      const f = e.target.files[0]; if(!f) return;
+      const reader = new FileReader();
+      reader.onload = async ()=>{
+        try{
+          const data = JSON.parse(reader.result);
+          delete data.config; // safety net: never let an imported file overwrite local credentials/login
+          S = Object.assign(S, data);
+          await persist(); render(); showToast('导入成功');
+        }catch(err){ alert('文件格式不正确'); }
+      };
+      reader.readAsText(f);
+    };
+  },0);
+  return wrap;
+}
+
+function showToast(msg){
+  const old = document.querySelector('.toast'); if(old) old.remove();
+  const t = el(`<div class="toast">${msg}</div>`);
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 3200);
+}
+
+/* ============ voice input (Web Speech API) ============ */
+let recognizer=null, listening=false;
+function attachVoice(btn, textarea){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ btn.title='当前浏览器不支持语音输入（建议 Chrome），可用输入法自带的语音转文字'; btn.style.opacity=.4; return; }
+  btn.onclick = ()=>{
+    if(listening){ if(recognizer) recognizer.stop(); listening=false; btn.classList.remove('listening'); return; }
+    recognizer = new SR();
+    recognizer.lang='zh-CN'; recognizer.continuous=true; recognizer.interimResults=true;
+    const base = textarea.value;
+    let finalText = base ? base+' ' : '';
+    recognizer.onresult = (e)=>{
+      let interim='';
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const t = e.results[i][0].transcript;
+        if(e.results[i].isFinal) finalText += t;
+        else interim += t;
+      }
+      textarea.value = finalText + interim;
+    };
+    recognizer.onerror = (e)=>{ listening=false; btn.classList.remove('listening'); if(e.error!=='no-speech') showToast('语音识别出错：'+e.error); };
+    recognizer.onend = ()=>{ if(listening){ try{ recognizer.start(); }catch(e){} } else btn.classList.remove('listening'); };
+    try{ recognizer.start(); listening=true; btn.classList.add('listening'); }
+    catch(e){ showToast('无法启动语音输入'); }
+  };
+}
+
+/* ============ quick capture + AI parse ============ */
+function openCapture(prefill){
+  const old = document.getElementById('capOverlay'); if(old) old.remove();
+  const overlay = el(`<div class="overlay" id="capOverlay"></div>`);
+  overlay.innerHTML = `<div class="modal">
+    <h2>快速录入</h2>
+    <div class="field"><div class="captureinputrow">
+      <textarea id="capText" placeholder="随手写一段话，或点右边麦克风说话，比如：帮我订下周三去上海的机票，另外提醒我周五交月报" style="min-height:100px;">${(prefill||'').replace(/</g,'&lt;')}</textarea>
+      <button class="micbtn" id="micBtn" title="语音输入">🎤</button>
+    </div></div>
+    <div class="hint">AI 解析会自动拆字段、识别类别，甚至把一句话里的多件事拆开——解析完你还能逐项修改，确认后才入库。当前 AI：${S.config.aiProvider==='deepseek'?'DeepSeek':'内置 AI'}（可在设置里切换）。快捷键：⌘/Ctrl + Enter 直接解析。</div>
+    <div class="btnrow"><button class="btn ghost" id="capManual">手动创建</button><button class="btn primary" id="capAI">AI 解析</button></div>
+    <div id="capStatus" style="margin-top:10px;font-size:12.5px;color:var(--muted);"></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  attachVoice(overlay.querySelector('#micBtn'), overlay.querySelector('#capText'));
+  const capTextEl = overlay.querySelector('#capText');
+  capTextEl.focus(); capTextEl.setSelectionRange(capTextEl.value.length, capTextEl.value.length);
+  capTextEl.onkeydown = (e)=>{
+    if((e.metaKey||e.ctrlKey) && e.key==='Enter'){ e.preventDefault(); overlay.querySelector('#capAI').click(); }
+  };
+  overlay.querySelector('#capManual').onclick = ()=>{ overlay.remove(); openConfirmCards([blankDraft(capTextEl.value.trim())]); };
+  overlay.querySelector('#capAI').onclick = async ()=>{
+    const text = overlay.querySelector('#capText').value.trim();
+    if(!text) return;
+    const statusEl = overlay.querySelector('#capStatus');
+    statusEl.textContent = '正在解析…';
+    overlay.querySelector('#capAI').disabled = true;
+    try{
+      const drafts = await aiParse(text);
+      S.raw.push({id:uid(), text, result:drafts, createdAt:Date.now()});
+      persist('raw');
+      overlay.remove();
+      openConfirmCards(drafts.length? drafts : [blankDraft(text)]);
+    }catch(err){
+      statusEl.innerHTML = `解析失败（${err.message}），<a href="#" id="retryLink">点击重试</a>，或 <a href="#" id="manualLink">改为手动填写</a>`;
+      overlay.querySelector('#capAI').disabled = false;
+      overlay.querySelector('#retryLink').onclick=(e)=>{e.preventDefault(); overlay.querySelector('#capAI').click();};
+      overlay.querySelector('#manualLink').onclick=(e)=>{e.preventDefault(); overlay.remove(); openConfirmCards([blankDraft(text)]);};
+    }
+  };
+}
+function blankDraft(text){
+  return {title:text.slice(0,30), stakeholder:'', category:'adhoc', dueDate:null, time:null, noTime:true, multiStepGuess:false};
+}
+
+function buildParsePrompt(text){
+  const projectList = S.projects.filter(p=>p.status!=='已结束').map(p=>`project:${p.id} = ${p.name}`);
+  const templateList = S.templates.map(t=>`recurring:${t.id} = ${t.name}`);
+  const knownList = [...projectList, ...templateList];
+  const knownBlock = knownList.length
+    ? `当前系统里已存在的项目/周期事项清单（key = 名称）：\n${knownList.join('\n')}\n如果本条事项明显属于清单里的某一项（比如提到了同名项目、同一个周期性事项的又一次任务），把该项的 key 原样填入 linkTo 字段；如果不确定或找不到匹配，linkTo 填空字符串，不要瞎猜。`
+    : `当前系统里还没有已存在的项目/周期事项，linkTo 一律填空字符串。`;
+  return `你是一个投资机构行政助理的工作事项解析助手。用户会输入一段口语化描述，你需要把它拆解成结构化字段，严格只输出 JSON，不要任何前后缀文字或代码块标记。
+如果一段话里包含多个彼此独立的事项，返回一个数组，每个元素是一个事项。
+每个事项字段：
+- title: 事项名称/简述（字符串，尽量简短）
+- stakeholder: 需求方/服务对象（字符串，识别不到则为空字符串）
+- category: 三选一 "recurring"(固定周期型，如周会/月报/考勤等有固定周期节奏的) / "adhoc"(按需日常型，简单的一次性委托或支持性事务) / "project"(项目制，长期、分阶段、需要规划的事务)
+- dueDate: 如果原文提到了具体日期，给出 YYYY-MM-DD（今天是 ${todayStr()}，如果是"下周三"这类相对时间，请据此推算），否则为 null
+- time: 如果提到具体时刻，给出 HH:MM，否则 null
+- noTime: 布尔值，如果没有明确时间点则为 true
+- multiStepGuess: 布尔值，如果原文有"先...再...然后..."这类多步骤结构则为 true
+- linkTo: 字符串，见下方说明
+${knownBlock}
+输出格式：{"items": [ {...}, {...} ]}
+用户输入：${text}`;
+}
+function normalizeItems(items){
+  const validLinkIds = new Set([
+    ...S.projects.map(p=>`project:${p.id}`),
+    ...S.templates.map(t=>`recurring:${t.id}`)
+  ]);
+  return items.map(it=>({
+    title: it.title||'', stakeholder: it.stakeholder||'', category: ['recurring','adhoc','project'].includes(it.category)?it.category:'adhoc',
+    dueDate: it.dueDate||null, time: it.time||null, noTime: it.noTime!==false && !it.time,
+    multiStepGuess: !!it.multiStepGuess,
+    linkTo: (it.linkTo && validLinkIds.has(it.linkTo)) ? it.linkTo : ''
+  }));
+}
+async function aiParse(text){
+  if(S.config.aiProvider==='deepseek' && S.config.deepseekKey){
+    return await aiParseDeepSeek(text);
+  }
+  if(S.config.aiProvider==='deepseek' && !S.config.deepseekKey){
+    showToast('未配置 DeepSeek Key，已改用内置 AI 解析，可在设置里补上 Key');
+  }
+  return await aiParseClaude(text);
+}
+async function aiParseDeepSeek(text){
+  const resp = await fetch("https://api.deepseek.com/chat/completions", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json", "Authorization": `Bearer ${S.config.deepseekKey}` },
+    body: JSON.stringify({
+      model:"deepseek-chat",
+      messages:[{role:"user", content: buildParsePrompt(text)}],
+      response_format:{type:"json_object"}
+    })
+  });
+  if(!resp.ok) throw new Error('DeepSeek 请求失败 '+resp.status);
+  const data = await resp.json();
+  let raw = data.choices?.[0]?.message?.content || '';
+  raw = raw.replace(/```json|```/g,'').trim();
+  const parsed = JSON.parse(raw);
+  const items = parsed.items || (Array.isArray(parsed)? parsed: [parsed]);
+  return normalizeItems(items);
+}
+async function aiParseClaude(text){
+  let resp;
+  try{
+    resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1000, messages:[{role:"user", content: buildParsePrompt(text)}] })
+    });
+  }catch(e){
+    throw new Error('内置 AI 只在 Claude 预览环境里可用，这里似乎不是——请去设置里配置 DeepSeek Key，或改用手动创建');
+  }
+  if(!resp.ok) throw new Error('内置 AI 请求失败（很可能是因为不在 Claude 预览环境里）——请去设置里配置 DeepSeek Key，或改用手动创建');
+  const data = await resp.json();
+  let raw = (data.content||[]).map(c=>c.text||'').join('');
+  raw = raw.replace(/```json|```/g,'').trim();
+  const parsed = JSON.parse(raw);
+  const items = parsed.items || (Array.isArray(parsed)? parsed: [parsed]);
+  return normalizeItems(items);
+}
+
+function linkableOptions(){
+  const opts = [];
+  S.projects.forEach(p=> opts.push({value:`project:${p.id}`, label:`📁 ${p.name}（项目）`}));
+  S.templates.forEach(t=> opts.push({value:`recurring:${t.id}`, label:`🔁 ${t.name}（周期）`}));
+  return opts;
+}
+// Names that already exist in the project/recurring-template library — used as the
+// ONLY suggestions in the 所属项目 datalist, so unfamiliar/one-off names don't clutter it.
+function existingProjectNames(){
+  const names = new Set();
+  S.projects.forEach(p=>{ if(p.name) names.add(p.name); });
+  S.templates.forEach(t=>{ if(t.name) names.add(t.name); });
+  return [...names];
+}
+// Resolve free-typed project text to an existing project/template, exact match only
+// (case/whitespace-insensitive). Empty string if nothing in the library matches.
+function matchProjectByName(text){
+  const norm = (text||'').trim().toLowerCase();
+  if(!norm) return '';
+  const p = S.projects.find(x=>(x.name||'').trim().toLowerCase()===norm);
+  if(p) return `project:${p.id}`;
+  const t = S.templates.find(x=>(x.name||'').trim().toLowerCase()===norm);
+  if(t) return `recurring:${t.id}`;
+  return '';
+}
+function openConfirmCards(drafts){
+  ui.pendingCards = drafts.map(d=>{
+    let projectText = '';
+    if(d.linkTo){
+      const [kind, id] = d.linkTo.split(':');
+      if(kind==='project'){ const p=S.projects.find(x=>x.id===id); if(p) projectText=p.name; }
+      else if(kind==='recurring'){ const t=S.templates.find(x=>x.id===id); if(t) projectText=t.name; }
+    }
+    if(!projectText && d.category==='project') projectText = d.title;
+    return {...d, addToDropdown:false, projectText, createProject:true};
+  });
+  renderConfirmModal();
+}
+function renderConfirmModal(){
+  const old = document.getElementById('confirmOverlay'); if(old) old.remove();
+  const overlay = el(`<div class="overlay" id="confirmOverlay"></div>`);
+  const stkOpts = curatedStkOptions();
+  overlay.innerHTML = `<div class="modal" style="max-width:600px;"><h2>确认入库（${ui.pendingCards.length} 项）</h2>
+    <datalist id="stkOptsList">${stkOpts.map(o=>`<option value="${o}">`).join('')}</datalist>
+    <div id="cardsWrap"></div>
+    <div class="btnrow"><button class="btn ghost" id="cfCancel">全部取消</button><button class="btn primary" id="cfSaveAll">确认全部入库</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  const cw = overlay.querySelector('#cardsWrap');
+  ui.pendingCards.forEach((d,i)=>{
+    const card = el(`<div class="cardsplit"></div>`);
+    const matchedLinkTo = matchProjectByName(d.projectText);
+    const linkedLabel = matchedLinkTo ? (linkableOptions().find(o=>o.value===matchedLinkTo)||{}).label : '';
+    const willCreateProject = !matchedLinkTo && d.category==='project';
+    const showCreateCheckbox = !matchedLinkTo && !willCreateProject && (d.projectText||'').trim();
+    card.innerHTML = `
+      <h3>事项 ${i+1} ${d.multiStepGuess?'<span class="aiflag">可能含多步骤</span>':''}</h3>
+      <div class="field"><label>事项名称</label><input type="text" value="${d.title}" data-f="title" data-i="${i}"></div>
+      <div class="inline">
+        <div class="field"><label>需求方</label><input type="text" list="stkOptsList" value="${d.stakeholder}" data-f="stakeholder" data-i="${i}"></div>
+        <div class="field" style="${matchedLinkTo?'opacity:.45;':''}"><label>类别${matchedLinkTo?'（已关联项目/周期事项，忽略此项）':''}</label><select data-f="category" data-i="${i}" ${matchedLinkTo?'disabled':''}>
+          <option value="adhoc" ${d.category==='adhoc'?'selected':''}>按需日常型</option>
+          <option value="project" ${d.category==='project'?'selected':''}>项目制</option>
+          <option value="recurring" ${d.category==='recurring'?'selected':''}>固定周期型</option>
+        </select></div>
+      </div>
+      <div class="inline">
+        <div class="field"><label>日期（可选）</label><input type="date" value="${d.dueDate||''}" data-f="dueDate" data-i="${i}"></div>
+        <div class="field"><label>时间（可选）</label><input type="time" value="${d.time||''}" data-f="time" data-i="${i}" ${d.noTime?'disabled':''}></div>
+      </div>
+      <div class="checkline">
+        <label><input type="checkbox" data-f="noTime" data-i="${i}" ${d.noTime?'checked':''}> 无固定时间</label>
+        <label style="margin-left:12px;"><input type="checkbox" data-f="addToDropdown" data-i="${i}"> 需求方加入常用下拉</label>
+      </div>
+      <div class="field" style="margin-top:8px;"><label>所属项目（可选，库里已有的项目/周期事项名会自动关联；没有的话可以直接手动输入新名字）</label>
+        <input type="text" list="globalProjList" value="${(d.projectText||'').replace(/"/g,'&quot;')}" data-f="projectText" data-i="${i}" placeholder="不填则作为普通日常事项">
+      </div>
+      ${matchedLinkTo? `<div class="hint">🔗 将归档为 ${linkedLabel} 下的一个检查点，同时会出现在「项目」页对应条目里。</div>` : ''}
+      ${willCreateProject? `<div class="hint">将作为「项目」列表中的新项目创建（项目名：${(d.projectText||d.title)}），之后可以继续添加步骤。</div>` : ''}
+      ${showCreateCheckbox? `<div class="checkline"><label><input type="checkbox" data-f="createProject" data-i="${i}" ${d.createProject!==false?'checked':''}> 项目库中没有「${d.projectText}」，勾选则创建为新项目；不勾选则仅作为普通事项保存</label></div>` : ''}
+      ${!matchedLinkTo && !willCreateProject && !showCreateCheckbox && d.category==='recurring'? `<div class="hint">固定周期型建议到「项目」页里"新建周期事项"配置循环规则；这里先按按需事项存一条，之后可以去配置模板。</div>`:''}
+      <div class="field" style="margin-top:8px;"><label>经验记录（可选，顺手记一笔）</label><textarea data-f="experience" data-i="${i}" placeholder="有什么想直接记下来的经验或坑？" style="min-height:50px;">${d.experience||''}</textarea></div>
+      <div class="field"><label>经验标签（可选，逗号分隔）</label><input type="text" value="${d.experienceTags||''}" data-f="experienceTags" data-i="${i}" placeholder="时间管理, 沟通协调"></div>
+    `;
+    cw.appendChild(card);
+  });
+  overlay.querySelectorAll('[data-f]').forEach(inp=>{
+    inp.onchange = ()=>{
+      const i=+inp.dataset.i, f=inp.dataset.f;
+      ui.pendingCards[i][f] = inp.type==='checkbox'? inp.checked : inp.value;
+      if(f==='noTime' || f==='projectText' || f==='category'){ renderConfirmModal(); }
+    };
+  });
+  overlay.querySelector('#cfCancel').onclick = ()=>overlay.remove();
+  overlay.querySelector('#cfSaveAll').onclick = ()=>{
+    ui.pendingCards.forEach(d=>{
+      if(d.addToDropdown && d.stakeholder && !S.dropdowns.stakeholders.includes(d.stakeholder)) S.dropdowns.stakeholders.push(d.stakeholder);
+      const expContent = (d.experience||'').trim();
+      const expTags = (d.experienceTags||'').split(',').map(s=>s.trim()).filter(Boolean);
+      function makeEntry(stepId){ return {id:uid(), content:expContent, tags:expTags, createdAt:Date.now(), stepLabel:d.title, stepId: stepId||null}; }
+      const matchedLinkTo = matchProjectByName(d.projectText);
+      const willCreateProject = !matchedLinkTo && d.category==='project';
+      if(matchedLinkTo){
+        const [kind, id] = matchedLinkTo.split(':');
+        const stepObj = {
+          id:uid(), content:d.title,
+          date: d.dueDate||null, time: d.noTime?null:(d.time||null), noTime: !!d.noTime,
+          status:'todo'
+        };
+        if(kind==='project'){
+          const p = S.projects.find(x=>x.id===id);
+          if(p){
+            p.steps = p.steps||[]; p.steps.push(stepObj);
+            if(expContent){ p.takeaways=p.takeaways||[]; p.takeaways.push(makeEntry(stepObj.id)); }
+          }
+        } else if(kind==='recurring'){
+          const t = S.templates.find(x=>x.id===id);
+          const cyc = t ? currentCycleFor(t) : null;
+          if(cyc){
+            cyc.steps.push({...stepObj, stepDefId:null, reminder:true, date: stepObj.date||todayStr()});
+            if(expContent){ t.takeaways=t.takeaways||[]; t.takeaways.push(makeEntry(stepObj.id)); }
+          }
+        }
+      } else if(willCreateProject || ((d.projectText||'').trim() && d.createProject!==false)){
+        const newProj = {id:uid(), name:(d.projectText||'').trim()||d.title, stakeholder:d.stakeholder, deadline:d.dueDate||null, status:'进行中', createdAt:Date.now(),
+          steps:[{id:uid(), content:d.title, date:d.dueDate||null, time:d.noTime?null:(d.time||null), noTime:!!d.noTime, status:'todo'}], takeaways:[]};
+        if(expContent) newProj.takeaways.push(makeEntry(newProj.steps[0].id));
+        S.projects.push(newProj);
+      } else {
+        S.instances.push({id:uid(), title:d.title, stakeholder:d.stakeholder, dueDate:d.dueDate||null, time:d.noTime?null:(d.time||null), noTime:!!d.noTime, status:'todo', createdAt:Date.now()});
+        if(expContent){ S.takeawaysByName[d.title]=S.takeawaysByName[d.title]||[]; S.takeawaysByName[d.title].push(makeEntry(null)); }
+      }
+    });
+    persist('dropdowns'); persist('projects'); persist('instances'); persist('cycles'); persist('templates'); persist('takeawaysByName');
+    overlay.remove(); showToast('已入库'); render();
+  };
+}
+
+/* ============ boot ============ */
+function setupGlobalShortcuts(){
+  document.addEventListener('keydown', (e)=>{
+    const tag = (document.activeElement && document.activeElement.tagName) || '';
+    const typing = tag==='INPUT' || tag==='TEXTAREA' || (document.activeElement && document.activeElement.isContentEditable);
+    if(typing) return;
+    if(document.querySelector('.overlay')) return;
+    if(e.key==='n' || e.key==='N'){ e.preventDefault(); openCapture(); }
+  });
+}
+
+(async function boot(){
+  S.config = await loadConfig();
+  if(cloudConfigured() && S.config.accessToken && Date.now() >= (S.config.tokenExpiry||0)){
+    await tryRefreshToken();
+  }
+  await loadAll();
+  render();
+  setupGlobalShortcuts();
+})();
+</script>
+</body>
+</html>
