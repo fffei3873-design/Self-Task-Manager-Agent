@@ -420,6 +420,7 @@ let S = {
   templates:[], projects:[], instances:[], cycles:[],
   dropdowns:{stakeholders:[], eventNames:[]},
   takeawaysByName:{},
+  freeTakeaways:[],
   todayOrder:{date:null, order:[]},
   raw:[]
 };
@@ -432,12 +433,13 @@ async function loadAll(){
   S.cycles = await loadKey('cycles', []);
   S.dropdowns = await loadKey('dropdowns', {stakeholders:[], eventNames:[]});
   S.takeawaysByName = await loadKey('takeawaysByName', {});
+  S.freeTakeaways = await loadKey('freeTakeaways', []);
   S.todayOrder = await loadKey('todayOrder', {date:null, order:[]});
   S.raw = await loadKey('raw', []);
   if(S.todayOrder.date !== todayStr()) S.todayOrder = {date:todayStr(), order:[]};
 }
 async function persist(part){
-  const keys = ['templates','projects','instances','cycles','dropdowns','takeawaysByName','todayOrder','raw'];
+  const keys = ['templates','projects','instances','cycles','dropdowns','takeawaysByName','freeTakeaways','todayOrder','raw'];
   if(part){ await saveKey(part, S[part]); }
   else{ for(const k of keys) await saveKey(k, S[k]); }
 }
@@ -862,6 +864,7 @@ function render(){
     <datalist id="globalStkList">${curatedStkOptions().map(o=>`<option value="${o}">`).join('')}</datalist>
     <datalist id="globalProjList">${existingProjectNames().map(o=>`<option value="${o.replace(/"/g,'&quot;')}">`).join('')}</datalist>
     <datalist id="globalTagList">${allTakeawayTags().map(o=>`<option value="${o.replace(/"/g,'&quot;')}">`).join('')}</datalist>
+    <datalist id="globalCategoryList">${existingTakeawayCategories().map(o=>`<option value="${o.replace(/"/g,'&quot;')}">`).join('')}</datalist>
   `;
   document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{ ui.tab=b.dataset.tab; if(ui.tab==='today') ui.weekOffset=0; render(); });
   const body = document.getElementById('tabbody');
@@ -1315,6 +1318,7 @@ function promptTakeawayGeneric(onSaveEntry, onDone){
   overlay.innerHTML = `<div class="modal" style="max-width:420px;">
     <h2>做完了 👍</h2>
     <div class="field"><label>这次有什么值得记录的经验或坑？（可跳过）</label><textarea id="taText" placeholder="例如：这次因为会议室提前被占用，下次提前一天锁定"></textarea></div>
+    <div class="field"><label>类别（可选）</label><input type="text" id="taCategory" list="globalCategoryList" placeholder="比如：沟通协调、工具使用"></div>
     <div class="field"><label>标签（可选）</label><div id="taTagsWrap"></div></div>
     <div class="btnrow"><button class="btn ghost" id="taSkip">跳过</button><button class="btn jade" id="taSave">保存经验</button></div>
   </div>`;
@@ -1325,7 +1329,8 @@ function promptTakeawayGeneric(onSaveEntry, onDone){
   overlay.querySelector('#taSave').onclick = ()=>{
     const content = overlay.querySelector('#taText').value.trim();
     const tags = taTags.getValue();
-    if(content) onSaveEntry({id:uid(), content, tags, createdAt:Date.now()});
+    const category = overlay.querySelector('#taCategory').value.trim();
+    if(content) onSaveEntry({id:uid(), content, tags, category: category||null, createdAt:Date.now()});
     overlay.remove(); onDone();
   };
 }
@@ -1421,6 +1426,7 @@ function openTakeawayQuickAdd(onSave, contextLabel){
   overlay.innerHTML = `<div class="modal" style="max-width:420px;">
     <h2>记录经验${contextLabel? ` <span class="muted" style="font-size:13px;font-weight:400;">· ${contextLabel}</span>`:''}</h2>
     <div class="field"><label>内容</label><textarea id="qaText" placeholder="这次踩的坑、或者一个小技巧..."></textarea></div>
+    <div class="field"><label>类别（可选）</label><input type="text" id="qaCategory" list="globalCategoryList" placeholder="比如：沟通协调、工具使用"></div>
     <div class="field"><label>标签（可选）</label><div id="qaTagsWrap"></div></div>
     <div class="btnrow"><button class="btn ghost" id="qaCancel">取消</button><button class="btn jade" id="qaSave">保存</button></div>
   </div>`;
@@ -1431,7 +1437,8 @@ function openTakeawayQuickAdd(onSave, contextLabel){
   overlay.querySelector('#qaSave').onclick = ()=>{
     const content = overlay.querySelector('#qaText').value.trim();
     const tags = qaTags.getValue();
-    if(content){ onSave({id:uid(), content, tags, createdAt:Date.now(), stepLabel:contextLabel||''}); overlay.remove(); render(); }
+    const category = overlay.querySelector('#qaCategory').value.trim();
+    if(content){ onSave({id:uid(), content, tags, category: category||null, createdAt:Date.now(), stepLabel:contextLabel||''}); overlay.remove(); render(); }
     else overlay.remove();
   };
 }
@@ -1597,6 +1604,7 @@ function collectAllTakeaways(){
   S.templates.forEach(t=> (t.takeaways||[]).forEach(e=> list.push({...e, source:t.name, sourceKind:'周期事项', sourceId:t.id, navKind:'recurring'})));
   S.projects.forEach(p=> (p.takeaways||[]).forEach(e=> list.push({...e, source:p.name, sourceKind:'项目', sourceId:p.id, navKind:'project'})));
   Object.keys(S.takeawaysByName).forEach(name=> (S.takeawaysByName[name]||[]).forEach(e=> list.push({...e, source:'按需事项经验归档', sourceKind:'按需事项', sourceId:'adhoc_all', navKind:'name', stepLabel: e.stepLabel||name})));
+  (S.freeTakeaways||[]).forEach(e=> list.push({...e, source:'自由记录', sourceKind:'自由记录', sourceId:'free', navKind:'free'}));
   return list.sort((a,b)=>b.createdAt-a.createdAt);
 }
 // All tags ever used across every takeaway entry, for the shared 标签 datalist.
@@ -1605,14 +1613,66 @@ function allTakeawayTags(){
   collectAllTakeaways().forEach(e=>(e.tags||[]).forEach(t=>{ if(t) set.add(t); }));
   return [...set];
 }
+// All categories ever used, for the 类别 datalist — categories are a free-form label that can
+// group entries together regardless of what item (or nothing) they're attached to.
+function existingTakeawayCategories(){
+  const set = new Set();
+  collectAllTakeaways().forEach(e=>{ if(e.category) set.add(e.category); });
+  return [...set];
+}
+function deleteTakeawayEntry(e){
+  if(e.sourceKind==='周期事项'){
+    const t = S.templates.find(x=>x.id===e.sourceId);
+    if(t){ t.takeaways = (t.takeaways||[]).filter(x=>x.id!==e.id); persist('templates'); }
+  } else if(e.sourceKind==='项目'){
+    const p = S.projects.find(x=>x.id===e.sourceId);
+    if(p){ p.takeaways = (p.takeaways||[]).filter(x=>x.id!==e.id); persist('projects'); }
+  } else if(e.sourceKind==='按需事项'){
+    const key = e.stepLabel;
+    if(key && S.takeawaysByName[key]){
+      S.takeawaysByName[key] = S.takeawaysByName[key].filter(x=>x.id!==e.id);
+      persist('takeawaysByName');
+    }
+  } else if(e.sourceKind==='自由记录'){
+    S.freeTakeaways = (S.freeTakeaways||[]).filter(x=>x.id!==e.id);
+    persist('freeTakeaways');
+  }
+}
+// Standalone experience entry, not attached to any project/template/task — pure archive note.
+function openFreeTakeawayForm(){
+  const overlay = el(`<div class="overlay"></div>`);
+  overlay.innerHTML = `<div class="modal" style="max-width:420px;">
+    <h2>新增经验</h2>
+    <div class="field"><label>内容</label><textarea id="ftText" placeholder="不挂靠任何具体事项，单纯记一笔想法/经验/坑..."></textarea></div>
+    <div class="field"><label>类别（可选，方便和其他经验一起归到同一类下）</label><input type="text" id="ftCategory" list="globalCategoryList" placeholder="比如：沟通协调、工具使用"></div>
+    <div class="field"><label>标签（可选）</label><div id="ftTagsWrap"></div></div>
+    <div class="btnrow"><button class="btn ghost" id="ftCancel">取消</button><button class="btn jade" id="ftSave">保存</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  const ftTags = renderTagPicker([]);
+  overlay.querySelector('#ftTagsWrap').appendChild(ftTags);
+  overlay.querySelector('#ftCancel').onclick = ()=>overlay.remove();
+  overlay.querySelector('#ftSave').onclick = ()=>{
+    const content = overlay.querySelector('#ftText').value.trim();
+    if(!content){ alert('内容不能为空'); return; }
+    const category = overlay.querySelector('#ftCategory').value.trim();
+    S.freeTakeaways = S.freeTakeaways||[];
+    S.freeTakeaways.push({id:uid(), content, tags:ftTags.getValue(), category: category||null, createdAt:Date.now()});
+    persist('freeTakeaways');
+    overlay.remove(); render();
+  };
+}
 function renderTakeawaysTab(){
   const wrap = el(`<div></div>`);
   const all = collectAllTakeaways();
   const tagSet = new Set(); all.forEach(e=>(e.tags||[]).forEach(t=>tagSet.add(t)));
   const bySource = {}; all.forEach(e=>{ const k=e.sourceKind+':'+e.sourceId; bySource[k]=(bySource[k]||0)+1; });
   wrap.innerHTML = `<div class="filterbar">
-    <select id="taTagFilter"><option value="">全部标签（共 ${all.length} 条经验 · ${Object.keys(bySource).length} 个来源）</option>${[...tagSet].map(t=>`<option value="${t}" ${ui.taTagFilter===t?'selected':''}>${t}</option>`).join('')}</select>
+    <input type="text" id="taTagFilter" list="taTagDatalist" placeholder="按标签筛选，支持搜索（共 ${all.length} 条经验 · ${Object.keys(bySource).length} 个来源）" value="${(ui.taTagFilter||'').replace(/"/g,'&quot;')}" style="max-width:280px;padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
+    <datalist id="taTagDatalist">${[...tagSet].map(t=>`<option value="${t}">`).join('')}</datalist>
+    ${ui.taTagFilter? `<button class="btn ghost sm" id="taTagClear">✕ 清除标签筛选</button>`:''}
     <input type="text" id="taSearch" placeholder="搜索经验内容..." value="${(ui.taSearch||'').replace(/"/g,'&quot;')}" style="flex:1;max-width:280px;padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
+    <button class="btn primary sm" id="addFreeTakeawayBtn" style="margin-left:auto;">+ 新增经验</button>
   </div>
   <div id="taGroups"></div>`;
   const groupsContainer = wrap.querySelector('#taGroups');
@@ -1622,39 +1682,52 @@ function renderTakeawaysTab(){
     if(ui.taTagFilter) filtered = filtered.filter(e=>(e.tags||[]).includes(ui.taTagFilter));
     if(ui.taSearch) filtered = filtered.filter(e=>e.content.includes(ui.taSearch));
     if(!filtered.length){
-      groupsContainer.appendChild(el(`<div class="empty"><b>没有匹配的经验记录</b>完成任务时会提示记录，或者随时点检查点旁的 💡+ 按钮记一条。</div>`));
+      groupsContainer.appendChild(el(`<div class="empty"><b>没有匹配的经验记录</b>完成任务时会提示记录，或者随时点检查点旁的 💡+ 按钮记一条，也可以点右上角"+ 新增经验"单独记一笔。</div>`));
       return;
     }
+    // Group by category when set — this is what lets item-linked entries and freestanding
+    // ones sit together under one heading. Uncategorized entries fall back to the old
+    // group-by-source behavior so existing data still organizes sensibly.
     const groups = {};
     filtered.forEach(e=>{
-      const key = e.sourceKind+':'+e.sourceId;
-      if(!groups[key]) groups[key] = {sourceKind:e.sourceKind, source:e.source, sourceId:e.sourceId, navKind:e.navKind, entries:[]};
+      const isCategorized = !!e.category;
+      const key = isCategorized ? ('cat:'+e.category) : (e.sourceKind+':'+e.sourceId);
+      if(!groups[key]) groups[key] = { isCategorized, label: isCategorized ? e.category : e.source, sourceKind:e.sourceKind, sourceId:e.sourceId, navKind:e.navKind, entries:[] };
       groups[key].entries.push(e);
     });
     const groupList = Object.values(groups).sort((a,b)=> b.entries[0].createdAt - a.entries[0].createdAt);
     groupList.forEach(g=>{
-      const openKey = 'tag_'+g.sourceKind+g.sourceId;
+      const openKey = 'tag_'+(g.isCategorized? 'cat:'+g.label : g.sourceKind+g.sourceId);
       const open = !!ui.openCards[openKey];
       const sourceCls = g.sourceKind==='周期事项'?'cat-recurring':(g.sourceKind==='项目'?'cat-project':'cat-adhoc');
       const card = el(`<div class="libcard ${open?'open':''}"></div>`);
       card.innerHTML = `
         <div class="lh">
-          <span class="car">▸</span><h3>${g.source}</h3>
-          <span class="tag ${sourceCls}">${g.sourceKind}</span>
+          <span class="car">▸</span><h3>${g.label}</h3>
+          ${g.isCategorized? `<span class="tag" style="background:var(--paper-dim);">类别</span>` : `<span class="tag ${sourceCls}">${g.sourceKind}</span>`}
           <span class="muted mono" style="font-size:11px;">${g.entries.length} 条经验</span>
-          ${g.navKind!=='name'? `<button class="btn ghost sm" data-navto="1" style="margin-left:auto;">查看事项</button>`:''}
+          ${(!g.isCategorized && g.navKind!=='name' && g.navKind!=='free')? `<button class="btn ghost sm" data-navto="1" style="margin-left:auto;">查看事项</button>`:''}
         </div>
         <div class="detail"></div>
       `;
       const detail = card.querySelector('.detail');
       g.entries.forEach(e=>{
+        const entrySourceCls = e.sourceKind==='周期事项'?'cat-recurring':(e.sourceKind==='项目'?'cat-project':'cat-adhoc');
         const item = el(`<div style="padding:8px 0;border-bottom:1px solid var(--line-soft);"></div>`);
-        item.innerHTML = `<div style="font-size:13px;">${e.content}</div>
+        item.innerHTML = `<div style="font-size:13px;display:flex;align-items:flex-start;gap:8px;">
+            <span style="flex:1;">${e.content}</span>
+            <button class="btn ghost sm" data-deltakeaway="1" style="color:var(--danger);flex:0 0 auto;">删除</button>
+          </div>
           <div class="meta" style="margin-top:4px;">
-            ${e.stepLabel && e.stepLabel!==g.source? `<span class="tag time">${e.stepLabel}</span>`:''}
+            ${g.isCategorized? `<span class="tag ${entrySourceCls}" style="font-size:10.5px;">${e.source}</span>` : ''}
+            ${e.stepLabel && e.stepLabel!==e.source? `<span class="tag time">${e.stepLabel}</span>`:''}
             ${(e.tags||[]).map(t=>`<span class="tag" style="background:var(--jade-soft);color:var(--jade);">${t}</span>`).join('')}
             <span class="muted mono" style="font-size:10px;margin-left:auto;">${new Date(e.createdAt).toLocaleDateString('zh-CN')}</span>
           </div>`;
+        item.querySelector('[data-deltakeaway]').onclick = (ev)=>{
+          ev.stopPropagation();
+          if(confirm('确定删除这条经验记录吗？')){ deleteTakeawayEntry(e); refresh(); }
+        };
         detail.appendChild(item);
       });
       card.querySelector('.lh').onclick = (e)=>{
@@ -1674,8 +1747,11 @@ function renderTakeawaysTab(){
     });
   }
   setTimeout(()=>{
-    document.getElementById('taTagFilter').onchange = e=>{ ui.taTagFilter = e.target.value; refresh(); };
+    document.getElementById('taTagFilter').onchange = e=>{ ui.taTagFilter = e.target.value.trim(); render(); };
+    const clearBtn = document.getElementById('taTagClear');
+    if(clearBtn) clearBtn.onclick = ()=>{ ui.taTagFilter=''; render(); };
     document.getElementById('taSearch').oninput = e=>{ ui.taSearch = e.target.value; refresh(); };
+    document.getElementById('addFreeTakeawayBtn').onclick = openFreeTakeawayForm;
     refresh();
   },0);
   return wrap;
@@ -2201,7 +2277,7 @@ create policy "own rows only" on app_data
     document.getElementById('exportBtn').onclick = ()=>{
       const exportable = {
         templates:S.templates, projects:S.projects, instances:S.instances, cycles:S.cycles,
-        dropdowns:S.dropdowns, takeawaysByName:S.takeawaysByName, todayOrder:S.todayOrder, raw:S.raw
+        dropdowns:S.dropdowns, takeawaysByName:S.takeawaysByName, freeTakeaways:S.freeTakeaways, todayOrder:S.todayOrder, raw:S.raw
       };
       const blob = new Blob([JSON.stringify(exportable,null,2)], {type:'application/json'});
       const url = URL.createObjectURL(blob);
@@ -2486,6 +2562,7 @@ function renderConfirmModal(){
       ${showCreateCheckbox? `<div class="checkline"><label><input type="checkbox" data-f="createProject" data-i="${i}" ${d.createProject!==false?'checked':''}> 项目库中没有「${d.projectText}」，勾选则创建为新项目；不勾选则仅作为普通事项保存</label></div>` : ''}
       ${!matchedLinkTo && !willCreateProject && !showCreateCheckbox && d.category==='recurring'? `<div class="hint">固定周期型建议到「项目」页里"新建周期事项"配置循环规则；这里先按按需事项存一条，之后可以去配置模板。</div>`:''}
       <div class="field" style="margin-top:8px;"><label>经验记录（可选，顺手记一笔）</label><textarea data-f="experience" data-i="${i}" placeholder="有什么想直接记下来的经验或坑？" style="min-height:50px;">${d.experience||''}</textarea></div>
+      <div class="field"><label>经验类别（可选）</label><input type="text" value="${(d.experienceCategory||'').replace(/"/g,'&quot;')}" data-f="experienceCategory" data-i="${i}" list="globalCategoryList" placeholder="比如：沟通协调、工具使用"></div>
       <div class="field"><label>经验标签（可选）</label><div id="tagWrap_${i}"></div></div>
     `;
     cw.appendChild(card);
@@ -2509,7 +2586,7 @@ function renderConfirmModal(){
       }
       const expContent = (d.experience||'').trim();
       const expTags = Array.isArray(d.experienceTags) ? d.experienceTags : [];
-      function makeEntry(stepId){ return {id:uid(), content:expContent, tags:expTags, createdAt:Date.now(), stepLabel:d.title, stepId: stepId||null}; }
+      function makeEntry(stepId){ return {id:uid(), content:expContent, tags:expTags, category:(d.experienceCategory||'').trim()||null, createdAt:Date.now(), stepLabel:d.title, stepId: stepId||null}; }
       const matchedLinkTo = matchProjectByName(d.projectText);
       const willCreateProject = !matchedLinkTo && d.category==='project';
       if(matchedLinkTo){
