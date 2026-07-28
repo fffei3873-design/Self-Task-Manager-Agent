@@ -95,7 +95,6 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
 .empty{padding:40px 10px;text-align:center;color:var(--muted);}
 .empty b{display:block;font-family:'Source Serif 4',serif;font-size:16px;color:var(--ink-soft);margin-bottom:4px;}
 
-.fab{position:fixed;right:26px;bottom:26px;width:56px;height:56px;border-radius:50%;background:var(--ink);color:var(--paper);border:none;font-size:26px;box-shadow:0 6px 20px rgba(27,36,48,.35);z-index:30;}
 
 .overlay{position:fixed;inset:0;background:rgba(27,32,40,.45);display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;z-index:100;overflow:auto;}
 .modal{background:var(--paper);border-radius:14px;max-width:560px;width:100%;padding:22px 22px 20px;box-shadow:0 20px 60px rgba(0,0,0,.3);position:relative;}
@@ -329,22 +328,37 @@ async function cloudSet(key, val, retried){
 }
 
 /* ============ generic storage layer: cloud if logged in, else local ============ */
-async function loadKey(key, def){
-  if(cloudLoggedIn()){
-    try{ const v = await cloudGet(key); return v!==undefined ? v : def; }
-    catch(e){ console.warn('cloud load failed, falling back to local', e); }
-  }
+async function readLocalKey(key){
   try{
     if(hasClaudeStorage()){
       const r = await window.storage.get('wt:'+key, false);
-      if(!r || r.value==null) return def;
-      return JSON.parse(r.value);
+      return (r && r.value!=null) ? JSON.parse(r.value) : undefined;
     } else {
       const v = window.localStorage.getItem('wt:'+key);
-      if(!v) return def;
-      return JSON.parse(v);
+      return v ? JSON.parse(v) : undefined;
     }
-  }catch(e){ return def; }
+  }catch(e){ return undefined; }
+}
+async function loadKey(key, def){
+  if(cloudLoggedIn()){
+    try{
+      const cloudVal = await cloudGet(key);
+      if(cloudVal!==undefined) return cloudVal;
+      // Cloud is reachable and has genuinely nothing saved for this key. Before treating
+      // that as "this is empty", check local storage — if it has something, it most likely
+      // means an earlier save silently failed and fell back to local (see saveKey below).
+      // Silently returning def here would make that data disappear without any warning.
+      const localVal = await readLocalKey(key);
+      if(localVal!==undefined){
+        showToast('⚠️ 云端还没有这份「'+key+'」数据，已用本地备份显示，正在尝试同步到云端…');
+        cloudSet(key, localVal).catch(e=>console.warn('background sync-up failed', e));
+        return localVal;
+      }
+      return def;
+    }catch(e){ console.warn('cloud load failed, falling back to local', e); }
+  }
+  const localVal = await readLocalKey(key);
+  return localVal!==undefined ? localVal : def;
 }
 async function saveKey(key, val){
   if(cloudLoggedIn()){
@@ -771,9 +785,14 @@ function buildRowsForDate(dateStr){
     }
   }
   for(const inst of S.instances){
-    if(inst.status==='done') continue;
     const due = inst.dueDate || null;
-    const showToday = due===dateStr || (due && due<dateStr && dateStr===todayStr());
+    const isDone = inst.status==='done';
+    let showToday;
+    if(due){
+      showToday = due===dateStr || (!isDone && due<dateStr && dateStr===todayStr());
+    } else {
+      showToday = isDone ? (inst.completedDate===dateStr) : (dateStr===todayStr());
+    }
     if(!showToday) continue;
     rows.push({ key:`adhoc:${inst.id}`, kind:'adhoc', category:'adhoc',
       title:inst.title, stakeholder:inst.stakeholder, time:inst.time, noTime:inst.noTime,
@@ -783,9 +802,14 @@ function buildRowsForDate(dateStr){
   for(const p of S.projects){
     if(p.status==='已结束') continue;
     (p.steps||[]).forEach(next=>{
-      if(next.status==='done') return;
       const due = next.date || null;
-      const showToday = due===dateStr || (due && due<dateStr && dateStr===todayStr()) || (!due && dateStr===todayStr());
+      const isDone = next.status==='done';
+      let showToday;
+      if(due){
+        showToday = due===dateStr || (!isDone && due<dateStr && dateStr===todayStr());
+      } else {
+        showToday = isDone ? (next.completedDate===dateStr) : (dateStr===todayStr());
+      }
       if(!showToday) return;
       rows.push({ key:`project:${p.id}:step:${next.id}`, kind:'projectNext', category:'project',
         title:`${p.name} · ${next.content}`, stakeholder:p.stakeholder, time:next.time, noTime: !next.time,
@@ -833,10 +857,8 @@ function render(){
     <div id="tabbody"></div>
     <datalist id="globalStkList">${curatedStkOptions().map(o=>`<option value="${o}">`).join('')}</datalist>
     <datalist id="globalProjList">${existingProjectNames().map(o=>`<option value="${o.replace(/"/g,'&quot;')}">`).join('')}</datalist>
-    <button class="fab" id="fabBtn" title="快速录入">+</button>
   `;
   document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{ ui.tab=b.dataset.tab; if(ui.tab==='today') ui.weekOffset=0; render(); });
-  document.getElementById('fabBtn').onclick = openCapture;
   const body = document.getElementById('tabbody');
   if(ui.tab==='today') body.appendChild(renderToday());
   else if(ui.tab==='week') body.appendChild(renderWeek());
@@ -1218,8 +1240,16 @@ function renderRowMenu(items){
 function toggleRow(r){
   const nowDone = r.status!=='done';
   if(r.kind==='recurringStep'){ r.refStep.status = nowDone?'done':'todo'; persist('cycles'); }
-  else if(r.kind==='adhoc'){ r.refInstance.status = nowDone?'done':'todo'; persist('instances'); }
-  else if(r.kind==='projectNext'){ r.refStep.status = nowDone?'done':'todo'; persist('projects'); }
+  else if(r.kind==='adhoc'){
+    r.refInstance.status = nowDone?'done':'todo';
+    if(!r.refInstance.dueDate) r.refInstance.completedDate = nowDone ? todayStr() : null;
+    persist('instances');
+  }
+  else if(r.kind==='projectNext'){
+    r.refStep.status = nowDone?'done':'todo';
+    if(!r.refStep.date) r.refStep.completedDate = nowDone ? todayStr() : null;
+    persist('projects');
+  }
   if(nowDone) promptTakeaway(r); else render();
 }
 function promptTakeaway(r){
