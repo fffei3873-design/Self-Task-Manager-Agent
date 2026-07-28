@@ -861,6 +861,7 @@ function render(){
     <div id="tabbody"></div>
     <datalist id="globalStkList">${curatedStkOptions().map(o=>`<option value="${o}">`).join('')}</datalist>
     <datalist id="globalProjList">${existingProjectNames().map(o=>`<option value="${o.replace(/"/g,'&quot;')}">`).join('')}</datalist>
+    <datalist id="globalTagList">${allTakeawayTags().map(o=>`<option value="${o.replace(/"/g,'&quot;')}">`).join('')}</datalist>
   `;
   document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{ ui.tab=b.dataset.tab; if(ui.tab==='today') ui.weekOffset=0; render(); });
   const body = document.getElementById('tabbody');
@@ -1314,14 +1315,16 @@ function promptTakeawayGeneric(onSaveEntry, onDone){
   overlay.innerHTML = `<div class="modal" style="max-width:420px;">
     <h2>做完了 👍</h2>
     <div class="field"><label>这次有什么值得记录的经验或坑？（可跳过）</label><textarea id="taText" placeholder="例如：这次因为会议室提前被占用，下次提前一天锁定"></textarea></div>
-    <div class="field"><label>标签（可选，逗号分隔）</label><input type="text" id="taTags" placeholder="时间管理, 沟通协调"></div>
+    <div class="field"><label>标签（可选）</label><div id="taTagsWrap"></div></div>
     <div class="btnrow"><button class="btn ghost" id="taSkip">跳过</button><button class="btn jade" id="taSave">保存经验</button></div>
   </div>`;
   document.body.appendChild(overlay);
+  const taTags = renderTagPicker([]);
+  overlay.querySelector('#taTagsWrap').appendChild(taTags);
   overlay.querySelector('#taSkip').onclick = ()=>{ overlay.remove(); onDone(); };
   overlay.querySelector('#taSave').onclick = ()=>{
     const content = overlay.querySelector('#taText').value.trim();
-    const tags = overlay.querySelector('#taTags').value.split(',').map(s=>s.trim()).filter(Boolean);
+    const tags = taTags.getValue();
     if(content) onSaveEntry({id:uid(), content, tags, createdAt:Date.now()});
     overlay.remove(); onDone();
   };
@@ -1418,14 +1421,16 @@ function openTakeawayQuickAdd(onSave, contextLabel){
   overlay.innerHTML = `<div class="modal" style="max-width:420px;">
     <h2>记录经验${contextLabel? ` <span class="muted" style="font-size:13px;font-weight:400;">· ${contextLabel}</span>`:''}</h2>
     <div class="field"><label>内容</label><textarea id="qaText" placeholder="这次踩的坑、或者一个小技巧..."></textarea></div>
-    <div class="field"><label>标签（可选，逗号分隔）</label><input type="text" id="qaTags" placeholder="时间管理, 沟通协调"></div>
+    <div class="field"><label>标签（可选）</label><div id="qaTagsWrap"></div></div>
     <div class="btnrow"><button class="btn ghost" id="qaCancel">取消</button><button class="btn jade" id="qaSave">保存</button></div>
   </div>`;
   document.body.appendChild(overlay);
+  const qaTags = renderTagPicker([]);
+  overlay.querySelector('#qaTagsWrap').appendChild(qaTags);
   overlay.querySelector('#qaCancel').onclick = ()=>overlay.remove();
   overlay.querySelector('#qaSave').onclick = ()=>{
     const content = overlay.querySelector('#qaText').value.trim();
-    const tags = overlay.querySelector('#qaTags').value.split(',').map(s=>s.trim()).filter(Boolean);
+    const tags = qaTags.getValue();
     if(content){ onSave({id:uid(), content, tags, createdAt:Date.now(), stepLabel:contextLabel||''}); overlay.remove(); render(); }
     else overlay.remove();
   };
@@ -1557,12 +1562,48 @@ function takeawayBlock(kind, keyOrName, list){
 }
 
 /* ============ 经验 (aggregated takeaways) tab ============ */
+// Multi-select 标签 input — same chip UI as the stakeholder picker, but suggests from
+// all tags ever used across takeaway entries, and supports true append (not replace).
+function renderTagPicker(initial, onChange){
+  const arr = Array.isArray(initial) ? initial.filter(Boolean) : (typeof initial==='string' ? initial.split(',').map(s=>s.trim()).filter(Boolean) : []);
+  const wrap = el(`<div class="stkpicker"></div>`);
+  function paint(focusInput){
+    wrap.innerHTML = `
+      <div class="stkchips">${arr.map((s,i)=>`<span class="chip sm" data-rm="${i}">${s}<button type="button">✕</button></span>`).join('')}</div>
+      <input type="text" list="globalTagList" placeholder="输入标签，回车可加多个">
+    `;
+    wrap.querySelectorAll('[data-rm]').forEach(c=>{
+      c.querySelector('button').onclick = ()=>{ arr.splice(+c.dataset.rm,1); paint(); if(onChange) onChange([...arr]); };
+    });
+    const inp = wrap.querySelector('input');
+    const commit = ()=>{
+      const v = inp.value.trim();
+      if(v && !arr.includes(v)) arr.push(v);
+      inp.value='';
+      paint(true);
+      if(onChange) onChange([...arr]);
+    };
+    inp.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); commit(); } };
+    inp.onblur = ()=>{ if(inp.value.trim()) commit(); };
+    if(focusInput) inp.focus();
+  }
+  paint(false);
+  wrap.getValue = ()=> [...arr];
+  wrap.setValue = (newArr)=>{ arr.length=0; arr.push(...(Array.isArray(newArr)?newArr.filter(Boolean):[])); paint(false); };
+  return wrap;
+}
 function collectAllTakeaways(){
   const list = [];
   S.templates.forEach(t=> (t.takeaways||[]).forEach(e=> list.push({...e, source:t.name, sourceKind:'周期事项', sourceId:t.id, navKind:'recurring'})));
   S.projects.forEach(p=> (p.takeaways||[]).forEach(e=> list.push({...e, source:p.name, sourceKind:'项目', sourceId:p.id, navKind:'project'})));
   Object.keys(S.takeawaysByName).forEach(name=> (S.takeawaysByName[name]||[]).forEach(e=> list.push({...e, source:'按需事项经验归档', sourceKind:'按需事项', sourceId:'adhoc_all', navKind:'name', stepLabel: e.stepLabel||name})));
   return list.sort((a,b)=>b.createdAt-a.createdAt);
+}
+// All tags ever used across every takeaway entry, for the shared 标签 datalist.
+function allTakeawayTags(){
+  const set = new Set();
+  collectAllTakeaways().forEach(e=>(e.tags||[]).forEach(t=>{ if(t) set.add(t); }));
+  return [...set];
 }
 function renderTakeawaysTab(){
   const wrap = el(`<div></div>`);
@@ -1711,6 +1752,7 @@ function renderProjectCard(p){
       </div>
       <div class="btnrow" style="justify-content:flex-start;margin-top:10px;">
         <button class="btn ghost sm" data-endproj="${p.id}">${p.status==='已结束'?'重新激活':'标记为已结束'}</button>
+        <button class="btn ghost sm" data-delproj="${p.id}" style="color:var(--danger);">删除项目</button>
       </div>
     </div>`;
   let pendingStepRec = null;
@@ -1793,6 +1835,12 @@ function renderProjectCard(p){
       }
     };
     card.querySelector(`[data-endproj="${p.id}"]`).onclick = ()=>{ p.status = p.status==='已结束'?'进行中':'已结束'; persist('projects'); render(); };
+    card.querySelector(`[data-delproj="${p.id}"]`).onclick = ()=>{
+      if(confirm(`确定删除项目「${p.name}」吗？这会连同它下面所有的步骤和经验记录一起永久删除，不可恢复。`)){
+        S.projects = S.projects.filter(x=>x.id!==p.id);
+        persist('projects'); render();
+      }
+    };
   },0);
   return card;
 }
@@ -1828,6 +1876,7 @@ function renderRecurringCard(t){
       <div id="tpsteps_${t.id}"></div>
       <div class="btnrow" style="justify-content:flex-start;margin-top:10px;">
         <button class="btn ghost sm" data-edittpl="${t.id}">编辑循环规则/步骤定义</button>
+        <button class="btn ghost sm" data-deltpl="${t.id}" style="color:var(--danger);">删除周期事项</button>
       </div>
     </div>`;
   setTimeout(()=>{
@@ -1865,6 +1914,13 @@ function renderRecurringCard(t){
       if(expanded) stepsEl.appendChild(expanded);
     });
     card.querySelector(`[data-edittpl="${t.id}"]`).onclick = ()=> openTemplateForm(t);
+    card.querySelector(`[data-deltpl="${t.id}"]`).onclick = ()=>{
+      if(confirm(`确定删除周期事项「${t.name}」吗？这会连同它所有已生成的周期实例和经验记录一起永久删除，不可恢复。`)){
+        S.templates = S.templates.filter(x=>x.id!==t.id);
+        S.cycles = S.cycles.filter(c=>c.templateId!==t.id);
+        persist('templates'); persist('cycles'); render();
+      }
+    };
   },0);
   return card;
 }
@@ -2430,11 +2486,13 @@ function renderConfirmModal(){
       ${showCreateCheckbox? `<div class="checkline"><label><input type="checkbox" data-f="createProject" data-i="${i}" ${d.createProject!==false?'checked':''}> 项目库中没有「${d.projectText}」，勾选则创建为新项目；不勾选则仅作为普通事项保存</label></div>` : ''}
       ${!matchedLinkTo && !willCreateProject && !showCreateCheckbox && d.category==='recurring'? `<div class="hint">固定周期型建议到「项目」页里"新建周期事项"配置循环规则；这里先按按需事项存一条，之后可以去配置模板。</div>`:''}
       <div class="field" style="margin-top:8px;"><label>经验记录（可选，顺手记一笔）</label><textarea data-f="experience" data-i="${i}" placeholder="有什么想直接记下来的经验或坑？" style="min-height:50px;">${d.experience||''}</textarea></div>
-      <div class="field"><label>经验标签（可选，逗号分隔）</label><input type="text" value="${d.experienceTags||''}" data-f="experienceTags" data-i="${i}" placeholder="时间管理, 沟通协调"></div>
+      <div class="field"><label>经验标签（可选）</label><div id="tagWrap_${i}"></div></div>
     `;
     cw.appendChild(card);
     const stkWho = renderStakeholderPicker(d.stakeholder, (val)=>{ d.stakeholder = val; });
     card.querySelector(`#stkWrap_${i}`).appendChild(stkWho);
+    const expTags = renderTagPicker(d.experienceTags, (val)=>{ d.experienceTags = val; });
+    card.querySelector(`#tagWrap_${i}`).appendChild(expTags);
   });
   overlay.querySelectorAll('[data-f]').forEach(inp=>{
     inp.onchange = ()=>{
@@ -2450,7 +2508,7 @@ function renderConfirmModal(){
         stkArr(d.stakeholder).forEach(name=>{ if(name && !S.dropdowns.stakeholders.includes(name)) S.dropdowns.stakeholders.push(name); });
       }
       const expContent = (d.experience||'').trim();
-      const expTags = (d.experienceTags||'').split(',').map(s=>s.trim()).filter(Boolean);
+      const expTags = Array.isArray(d.experienceTags) ? d.experienceTags : [];
       function makeEntry(stepId){ return {id:uid(), content:expContent, tags:expTags, createdAt:Date.now(), stepLabel:d.title, stepId: stepId||null}; }
       const matchedLinkTo = matchProjectByName(d.projectText);
       const willCreateProject = !matchedLinkTo && d.category==='project';
