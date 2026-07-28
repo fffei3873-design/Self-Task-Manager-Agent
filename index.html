@@ -133,6 +133,11 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
 .chipwrap{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
 .chip{background:var(--paper-dim);border-radius:6px;padding:4px 9px;font-size:12px;display:flex;align-items:center;gap:6px;}
 .chip button{border:none;background:transparent;color:var(--muted);font-size:12px;line-height:1;}
+.stkpicker{display:flex;flex-direction:column;gap:6px;}
+.stkchips{display:flex;flex-wrap:wrap;gap:5px;}
+.stkchips:empty{display:none;}
+.stkpicker input{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);font:inherit;}
+.chip.sm{padding:3px 7px;font-size:11.5px;}
 .addline{display:flex;gap:6px;margin-top:8px;}
 .addline input{flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:7px;}
 
@@ -776,11 +781,10 @@ function buildRowsForDate(dateStr){
     for(const st of c.steps){
       if(st.skipped) continue;
       const due = st.date;
-      const showToday = due===dateStr || (st.status!=='done' && due && due<dateStr && dateStr===todayStr());
-      if(!showToday) continue;
+      if(due!==dateStr) continue; // recurring steps only show on their own scheduled day — no carry-forward when overdue
       rows.push({ key:`cycle:${c.id}:step:${st.id}`, kind:'recurringStep', category:'recurring',
         title:`${t.name} · ${st.content}`, stakeholder:t.stakeholder, time:st.time, noTime:st.noTime,
-        status:st.status, createdAt:c.createdAt, overdueDays: due && due<dateStr ? diffDays(due,dateStr) : 0,
+        status:st.status, createdAt:c.createdAt, overdueDays:0,
         refCycle:c, refStep:st, refTemplate:t });
     }
   }
@@ -839,7 +843,7 @@ function sortRows(rows, isToday){
   }
   return ordered;
 }
-function applyWhoFilter(rows){ if(!ui.whoFilter) return rows; return rows.filter(r=> (r.stakeholder||'').includes(ui.whoFilter)); }
+function applyWhoFilter(rows){ if(!ui.whoFilter) return rows; return rows.filter(r=> stkArr(r.stakeholder).includes(ui.whoFilter)); }
 
 /* ============ render shell ============ */
 function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
@@ -868,9 +872,48 @@ function render(){
 }
 function tabBtn(id,label){ return `<button data-tab="${id}" class="${ui.tab===id?'active':''}">${label}</button>`; }
 
+// Stakeholder values are arrays going forward, but existing cloud/local data may still have
+// a plain string from before this change — these helpers make every read site tolerant of both,
+// so old data keeps working without a hard migration step; anything re-saved upgrades naturally.
+function stkArr(v){
+  if(Array.isArray(v)) return v.filter(Boolean);
+  if(typeof v==='string' && v.trim()) return [v.trim()];
+  return [];
+}
+function stkLabel(v){ return stkArr(v).join('、'); }
+// Multi-select 需求方 input: shows current picks as removable chips, plus a text field
+// (with the curated-list datalist) to add more — type a name and press Enter, or blur, to add it.
+function renderStakeholderPicker(initial, onChange){
+  const arr = stkArr(initial);
+  const wrap = el(`<div class="stkpicker"></div>`);
+  function paint(focusInput){
+    wrap.innerHTML = `
+      <div class="stkchips">${arr.map((s,i)=>`<span class="chip sm" data-rm="${i}">${s}<button type="button">✕</button></span>`).join('')}</div>
+      <input type="text" list="globalStkList" placeholder="输入需求方，回车可加多个">
+    `;
+    wrap.querySelectorAll('[data-rm]').forEach(c=>{
+      c.querySelector('button').onclick = ()=>{ arr.splice(+c.dataset.rm,1); paint(); if(onChange) onChange([...arr]); };
+    });
+    const inp = wrap.querySelector('input');
+    const commit = ()=>{
+      const v = inp.value.trim();
+      if(v && !arr.includes(v)) arr.push(v);
+      inp.value='';
+      paint(true);
+      if(onChange) onChange([...arr]);
+    };
+    inp.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); commit(); } };
+    inp.onblur = ()=>{ if(inp.value.trim()) commit(); };
+    if(focusInput) inp.focus();
+  }
+  paint(false);
+  wrap.getValue = ()=> [...arr];
+  wrap.setValue = (newArr)=>{ arr.length=0; arr.push(...stkArr(newArr)); paint(false); };
+  return wrap;
+}
 function whoOptions(){
   const set = new Set(S.dropdowns.stakeholders);
-  [...S.templates, ...S.projects, ...S.instances].forEach(x=>{ if(x.stakeholder) set.add(x.stakeholder); });
+  [...S.templates, ...S.projects, ...S.instances].forEach(x=>{ stkArr(x.stakeholder).forEach(s=>set.add(s)); });
   return [...set];
 }
 // Curated-only list for data-entry suggestions (Settings → 常用需求方管理).
@@ -1015,7 +1058,7 @@ function renderCheckpointRow(r, movable){
   const row = el(`<div class="row ${done?'done':''}"></div>`);
   const timeTag = r.time && !r.noTime ? `<span class="tag time">${r.time}</span>` : (r.noTime?`<span class="tag time">无固定时间</span>`:'');
   const overdueTag = r.overdueDays? `<span class="tag overdue">已逾期${r.overdueDays}天</span>` : '';
-  const whoTag = r.stakeholder? `<span class="tag who">${r.stakeholder}</span>` : '';
+  const whoTag = stkLabel(r.stakeholder)? `<span class="tag who">${stkLabel(r.stakeholder)}</span>` : '';
   row.innerHTML = `
     <div class="top">
       <button class="chk ${done?'done':''}" data-key="${r.key}">${done?'✓':''}</button>
@@ -1082,7 +1125,7 @@ function renderAdhocRow(r, movable){
     row.appendChild(box);
     const titleInp = el(`<input type="text" value="${inst.title.replace(/"/g,'&quot;')}" placeholder="事项名称" style="padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);">`);
     box.appendChild(titleInp);
-    const whoInp = el(`<input type="text" list="globalStkList" value="${(inst.stakeholder||'').replace(/"/g,'&quot;')}" placeholder="需求方（可下拉选择，也可输入新的）" style="padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);">`);
+    const whoInp = renderStakeholderPicker(inst.stakeholder);
     box.appendChild(whoInp);
     const dtWrap = el(`<div></div>`); box.appendChild(dtWrap);
     const dtPicker = renderDateTimePicker({date:inst.dueDate||'', time:inst.time||'', noTime:!!inst.noTime}, ()=>{});
@@ -1117,10 +1160,11 @@ function renderAdhocRow(r, movable){
       const linkTo = matchProjectByName(projectText);
       if(linkTo){
         const [kind, id] = linkTo.split(':');
-        const stepObj = { id:uid(), content:title, date: dtVal.date||null, time: dtVal.noTime?null:(dtVal.time||null), noTime: !!dtVal.noTime, status:'todo' };
+        const rec = recPicker.getRec();
+        const stepObj = { id:uid(), content:title, date: dtVal.date || (rec ? firstOccurrenceDate(rec) : null), time: dtVal.noTime?null:(dtVal.time||null), noTime: !!dtVal.noTime, status:'todo' };
         if(kind==='project'){
           const p = S.projects.find(x=>x.id===id);
-          if(p){ p.steps = p.steps||[]; p.steps.push({...stepObj, repeat: recPicker.getRec()}); persist('projects'); }
+          if(p){ p.steps = p.steps||[]; p.steps.push({...stepObj, repeat: rec}); persist('projects'); }
         } else if(kind==='recurring'){
           const t = S.templates.find(x=>x.id===id);
           const cyc = t ? currentCycleFor(t) : null;
@@ -1129,16 +1173,17 @@ function renderAdhocRow(r, movable){
         S.instances = S.instances.filter(x=>x.id!==inst.id);
         persist('instances');
       } else if(projectText && createProjChk.checked){
+        const rec = recPicker.getRec();
         S.projects.push({
-          id:uid(), name:projectText, stakeholder:whoInp.value.trim(), deadline:dtVal.date||null, status:'进行中', createdAt:Date.now(),
-          steps:[{id:uid(), content:title, date:dtVal.date||null, time:dtVal.noTime?null:(dtVal.time||null), noTime:!!dtVal.noTime, status:'todo', repeat:recPicker.getRec()}],
+          id:uid(), name:projectText, stakeholder:whoInp.getValue(), deadline:dtVal.date||null, status:'进行中', createdAt:Date.now(),
+          steps:[{id:uid(), content:title, date: dtVal.date || (rec ? firstOccurrenceDate(rec) : null), time:dtVal.noTime?null:(dtVal.time||null), noTime:!!dtVal.noTime, status:'todo', repeat:rec}],
           takeaways:[]
         });
         S.instances = S.instances.filter(x=>x.id!==inst.id);
         persist('projects'); persist('instances');
       } else {
         inst.title = title;
-        inst.stakeholder = whoInp.value.trim();
+        inst.stakeholder = whoInp.getValue();
         inst.dueDate = dtVal.date || null;
         inst.time = dtVal.noTime? null : (dtVal.time||null);
         inst.noTime = !!dtVal.noTime;
@@ -1155,7 +1200,7 @@ function renderAdhocRow(r, movable){
   row.className = `row ${done?'done':''}`;
   const timeTag = r.time && !r.noTime ? `<span class="tag time">${r.time}</span>` : (r.noTime?`<span class="tag time">无固定时间</span>`:'');
   const overdueTag = r.overdueDays? `<span class="tag overdue">已逾期${r.overdueDays}天</span>` : '';
-  const whoTag = r.stakeholder? `<span class="tag who">${r.stakeholder}</span>` : '';
+  const whoTag = stkLabel(r.stakeholder)? `<span class="tag who">${stkLabel(r.stakeholder)}</span>` : '';
   const repeatTxt = inst.repeat? ` <span class="muted" style="font-size:11px;">${repeatLabel(inst.repeat)}</span>` : '';
   row.innerHTML = `
     <div class="top">
@@ -1243,6 +1288,10 @@ function toggleRow(r){
   else if(r.kind==='adhoc'){
     r.refInstance.status = nowDone?'done':'todo';
     if(!r.refInstance.dueDate) r.refInstance.completedDate = nowDone ? todayStr() : null;
+    if(nowDone && r.refInstance.repeat){
+      const next = nextRepeatDate(r.refInstance.repeat, r.refInstance.dueDate||todayStr());
+      if(next){ r.refInstance.dueDate = next; r.refInstance.status='todo'; r.refInstance.completedDate=null; }
+    }
     persist('instances');
   }
   else if(r.kind==='projectNext'){
@@ -1250,22 +1299,14 @@ function toggleRow(r){
     if(!r.refStep.date) r.refStep.completedDate = nowDone ? todayStr() : null;
     persist('projects');
   }
-  if(nowDone) promptTakeaway(r); else render();
+  if(nowDone && r.kind==='projectNext') promptTakeaway(r); else render();
 }
 function promptTakeaway(r){
   promptTakeawayGeneric(
     (entry)=>{
-      if(r.kind==='recurringStep'){ entry.stepId = r.refStep.stepDefId||null; r.refTemplate.takeaways=r.refTemplate.takeaways||[]; r.refTemplate.takeaways.push(entry); persist('templates'); }
-      else if(r.kind==='projectNext'){ entry.stepId = r.refStep.id||null; r.refProject.takeaways=r.refProject.takeaways||[]; r.refProject.takeaways.push(entry); persist('projects'); }
-      else if(r.kind==='adhoc'){ const name=r.refInstance.title; S.takeawaysByName[name]=S.takeawaysByName[name]||[]; S.takeawaysByName[name].push(entry); persist('takeawaysByName'); }
+      entry.stepId = r.refStep.id||null; r.refProject.takeaways=r.refProject.takeaways||[]; r.refProject.takeaways.push(entry); persist('projects');
     },
-    ()=>{
-      if(r.kind==='adhoc' && r.refInstance.repeat){
-        const next = nextRepeatDate(r.refInstance.repeat, r.refInstance.dueDate||todayStr());
-        if(next){ r.refInstance.dueDate = next; r.refInstance.status='todo'; persist('instances'); }
-      }
-      render();
-    }
+    ()=>{ render(); }
   );
 }
 function promptTakeawayGeneric(onSaveEntry, onDone){
@@ -1302,7 +1343,7 @@ function openQuickAddConfirm(title){
   overlay.innerHTML = `<div class="modal" style="max-width:480px;">
     <h2>确认添加</h2>
     <div class="field"><label>事项名称</label><input type="text" id="qcTitle" value="${title.replace(/"/g,'&quot;')}"></div>
-    <div class="field"><label>需求方（可下拉选择，也可以直接输入新的）</label><input type="text" list="globalStkList" id="qcWho" placeholder="谁委托的"></div>
+    <div class="field"><label>需求方</label><div id="qcWhoWrap"></div></div>
     <div class="field"><label>日期/时间</label><div id="qcDtWrap"></div></div>
     <div class="field"><label>是否循环</label><div id="qcRecWrap"></div></div>
     <div class="field"><label>所属项目（可选，库里已有的项目/周期事项名会自动关联；没有的话可以直接手动输入新名字）</label>
@@ -1314,6 +1355,8 @@ function openQuickAddConfirm(title){
     <div class="btnrow"><button class="btn ghost" id="qcCancel">取消</button><button class="btn primary" id="qcSave">添加</button></div>
   </div>`;
   document.body.appendChild(overlay);
+  const qcWho = renderStakeholderPicker('');
+  overlay.querySelector('#qcWhoWrap').appendChild(qcWho);
   const dtPicker = renderDateTimePicker({date:todayStr(), time:'', noTime:true}, ()=>{});
   overlay.querySelector('#qcDtWrap').appendChild(dtPicker);
   const recPicker = renderRecurrencePicker(null, ()=>{}, false);
@@ -1330,7 +1373,7 @@ function openQuickAddConfirm(title){
   overlay.querySelector('#qcSave').onclick = ()=>{
     const finalTitle = titleInp.value.trim();
     if(!finalTitle){ alert('事项名称不能为空'); return; }
-    const stakeholder = overlay.querySelector('#qcWho').value.trim();
+    const stakeholder = qcWho.getValue();
     const dtVal = dtPicker.getValue();
     const repeatVal = recPicker.getRec();
     const projectText = qcProjectInp.value.trim();
@@ -1340,7 +1383,7 @@ function openQuickAddConfirm(title){
       const [kind, id] = linkTo.split(':');
       const stepObj = {
         id:uid(), content:finalTitle,
-        date: dtVal.date || todayStr(), time: dtVal.noTime? null : (dtVal.time||null), noTime: !!dtVal.noTime,
+        date: dtVal.date || (repeatVal ? firstOccurrenceDate(repeatVal) : todayStr()), time: dtVal.noTime? null : (dtVal.time||null), noTime: !!dtVal.noTime,
         status:'todo'
       };
       if(kind==='project'){
@@ -1354,14 +1397,14 @@ function openQuickAddConfirm(title){
     } else if(projectText && createProj){
       S.projects.push({
         id:uid(), name:projectText, stakeholder, deadline:dtVal.date||null, status:'进行中', createdAt:Date.now(),
-        steps:[{id:uid(), content:finalTitle, date:dtVal.date||null, time:dtVal.noTime?null:(dtVal.time||null), noTime:!!dtVal.noTime, status:'todo', repeat:repeatVal}],
+        steps:[{id:uid(), content:finalTitle, date: dtVal.date || (repeatVal ? firstOccurrenceDate(repeatVal) : null), time:dtVal.noTime?null:(dtVal.time||null), noTime:!!dtVal.noTime, status:'todo', repeat:repeatVal}],
         takeaways:[]
       });
       persist('projects');
     } else {
       S.instances.push({
         id:uid(), title:finalTitle, stakeholder,
-        dueDate: dtVal.date || todayStr(), time: dtVal.noTime? null : (dtVal.time||null), noTime: !!dtVal.noTime,
+        dueDate: dtVal.date || (repeatVal ? firstOccurrenceDate(repeatVal) : todayStr()), time: dtVal.noTime? null : (dtVal.time||null), noTime: !!dtVal.noTime,
         repeat: repeatVal, status:'todo', createdAt:Date.now()
       });
       persist('instances');
@@ -1488,6 +1531,15 @@ function nextRepeatDate(rec, fromDateStr){
   const searchEnd = addDays(from, 400);
   const results = generateAnchorsInWindow(rec, searchStart, searchEnd);
   return results.length ? results[0] : null; // null = series exhausted (hit end date/count)
+}
+// When a step gets a repeat rule but no explicit date was picked, it needs SOME real date to
+// anchor to — otherwise it has no due date at all and (per the "undated items float to today"
+// rule) would incorrectly sit on "today" forever instead of showing on its real next occurrence.
+function firstOccurrenceDate(rec){
+  if(!rec) return null;
+  const start = rec.rangeStart ? parseDate(rec.rangeStart) : new Date();
+  const results = generateAnchorsInWindow(rec, start, addDays(start, 400));
+  return results.length ? results[0] : null;
 }
 function repeatLabel(rec){
   if(!rec) return '';
@@ -1631,7 +1683,7 @@ function renderProjectCard(p){
       <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:220px;">
         <input type="text" class="peName" value="${p.name.replace(/"/g,'&quot;')}" placeholder="项目名称" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);font-family:'Source Serif 4',serif;font-size:14.5px;">
         <div class="inline" style="gap:6px;">
-          <input type="text" class="peWho" list="globalStkList" value="${(p.stakeholder||'').replace(/"/g,'&quot;')}" placeholder="需求方" style="flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
+          <div id="peWhoWrap_${p.id}" style="flex:1;"></div>
           <input type="date" class="peDeadline" value="${p.deadline||''}" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
         </div>
         <div class="btnrow" style="justify-content:flex-start;margin-top:0;">
@@ -1643,7 +1695,7 @@ function renderProjectCard(p){
     <div class="lh" data-toggle="pj_${p.id}">
       <span class="car">▸</span><h3 data-clickmeta="1" style="cursor:text;">${p.name}</h3>
       <span class="tag cat-project">项目制</span>
-      <span class="tag who" data-clickmeta="1" style="cursor:text;">${p.stakeholder||'+ 需求方'}</span>
+      <span class="tag who" data-clickmeta="1" style="cursor:text;">${stkLabel(p.stakeholder)||'+ 需求方'}</span>
       <span class="tag time" data-clickmeta="1" style="cursor:text;${p.deadline?'':'opacity:.5;'}">${p.deadline?`截止 ${p.deadline}`:'+ 截止日期'}</span>
       ${p.status==='已结束'?'<span class="tag" style="background:var(--paper-dim);color:var(--muted);">已结束</span>':''}
       <span class="muted mono" style="font-size:11px;">${doneCount}/${(p.steps||[]).length} 步骤</span>
@@ -1673,12 +1725,14 @@ function renderProjectCard(p){
         elm.onclick = (e)=>{ e.stopPropagation(); ui.openCards['editprojmeta_'+p.id]=true; render(); };
       });
     } else {
+      const peWho = renderStakeholderPicker(p.stakeholder);
+      card.querySelector(`#peWhoWrap_${p.id}`).appendChild(peWho);
       card.querySelector('[data-metacancel]').onclick = ()=>{ ui.openCards['editprojmeta_'+p.id]=false; render(); };
       card.querySelector('[data-metasave]').onclick = ()=>{
         const name = card.querySelector('.peName').value.trim();
         if(!name){ alert('项目名称不能为空'); return; }
         p.name = name;
-        p.stakeholder = card.querySelector('.peWho').value.trim();
+        p.stakeholder = peWho.getValue();
         p.deadline = card.querySelector('.peDeadline').value || null;
         ui.openCards['editprojmeta_'+p.id]=false;
         persist('projects'); render();
@@ -1730,7 +1784,8 @@ function renderProjectCard(p){
         if(pendingStepRec) pendingStepRec.rangeStart = pendingStepDt.date || todayStr();
         p.steps.push({
           id:uid(), content:contentInp.value.trim(),
-          date: pendingStepDt.date || null, time: pendingStepDt.noTime? null : (pendingStepDt.time || null),
+          date: pendingStepDt.date || (pendingStepRec ? firstOccurrenceDate(pendingStepRec) : null),
+          time: pendingStepDt.noTime? null : (pendingStepDt.time || null),
           repeat: pendingStepRec,
           status:'todo'
         });
@@ -1753,7 +1808,7 @@ function renderRecurringCard(t){
       <span class="car">▸</span>
       <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:220px;">
         <input type="text" class="teName" value="${t.name.replace(/"/g,'&quot;')}" placeholder="事项名称" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);font-family:'Source Serif 4',serif;font-size:14.5px;">
-        <input type="text" class="teWho" list="globalStkList" value="${(t.stakeholder||'').replace(/"/g,'&quot;')}" placeholder="需求方" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
+        <div id="teWhoWrap_${t.id}"></div>
         <div class="btnrow" style="justify-content:flex-start;margin-top:0;">
           <button class="btn ghost sm" data-metacancel>取消</button>
           <button class="btn primary sm" data-metasave>保存</button>
@@ -1763,7 +1818,7 @@ function renderRecurringCard(t){
     <div class="lh" data-toggle="tp_${t.id}">
       <span class="car">▸</span><h3 data-clickmeta="1" style="cursor:text;">${t.name}</h3>
       <span class="tag cat-recurring">${freqLabel}</span>
-      <span class="tag who" data-clickmeta="1" style="cursor:text;">${t.stakeholder||'+ 需求方'}</span>
+      <span class="tag who" data-clickmeta="1" style="cursor:text;">${stkLabel(t.stakeholder)||'+ 需求方'}</span>
       <span class="muted mono" style="font-size:11px;">${t.steps.length} 步骤</span>
     </div>`;
   card.innerHTML = lhHtml + `
@@ -1785,12 +1840,14 @@ function renderRecurringCard(t){
         elm.onclick = (e)=>{ e.stopPropagation(); ui.openCards['edittplmeta_'+t.id]=true; render(); };
       });
     } else {
+      const teWho = renderStakeholderPicker(t.stakeholder);
+      card.querySelector(`#teWhoWrap_${t.id}`).appendChild(teWho);
       card.querySelector('[data-metacancel]').onclick = ()=>{ ui.openCards['edittplmeta_'+t.id]=false; render(); };
       card.querySelector('[data-metasave]').onclick = ()=>{
         const name = card.querySelector('.teName').value.trim();
         if(!name){ alert('事项名称不能为空'); return; }
         t.name = name;
-        t.stakeholder = card.querySelector('.teWho').value.trim();
+        t.stakeholder = teWho.getValue();
         ui.openCards['edittplmeta_'+t.id]=false;
         persist('templates'); render();
       };
@@ -1817,24 +1874,33 @@ function openProjectForm(existing){
   const overlay = el(`<div class="overlay"></div>`);
   overlay.innerHTML = `<div class="modal">
     <h2>${existing?'编辑项目信息':'新建项目'}</h2>
-    <div class="field"><label>项目名称</label><input type="text" id="pName" value="${existing?existing.name:''}" placeholder="例如：投研工作AI开发"></div>
+    <div class="field"><label>项目名称${existing?'':'（新建时可以直接打一句话描述，回车让 AI 自动帮你填需求方/截止时间）'}</label><input type="text" id="pName" value="${existing?existing.name:''}" placeholder="例如：投研工作AI开发，下周五前给张总"></div>
     <div class="inline">
-      <div class="field"><label>需求方</label><input type="text" id="pWho" list="globalStkList" value="${existing?(existing.stakeholder||''):''}" placeholder="谁委托的"></div>
+      <div class="field"><label>需求方</label><div id="pWhoWrap"></div></div>
       <div class="field"><label>截止时间（可选）</label><input type="date" id="pDeadline" value="${existing&&existing.deadline?existing.deadline:''}"></div>
     </div>
     <div class="btnrow"><button class="btn ghost" id="pCancel">取消</button><button class="btn primary" id="pSave">${existing?'保存':'创建'}</button></div>
   </div>`;
   document.body.appendChild(overlay);
+  const pWho = renderStakeholderPicker(existing?existing.stakeholder:'');
+  overlay.querySelector('#pWhoWrap').appendChild(pWho);
+  if(!existing){
+    wireEnterToAIParse(overlay.querySelector('#pName'), (d)=>{
+      overlay.querySelector('#pName').value = d.title || overlay.querySelector('#pName').value;
+      if(d.stakeholder) pWho.setValue([d.stakeholder]);
+      if(d.dueDate) overlay.querySelector('#pDeadline').value = d.dueDate;
+    });
+  }
   overlay.querySelector('#pCancel').onclick = ()=>overlay.remove();
   overlay.querySelector('#pSave').onclick = ()=>{
     const name = overlay.querySelector('#pName').value.trim();
     if(!name) return;
     if(existing){
       existing.name = name;
-      existing.stakeholder = overlay.querySelector('#pWho').value.trim();
+      existing.stakeholder = pWho.getValue();
       existing.deadline = overlay.querySelector('#pDeadline').value || null;
     } else {
-      S.projects.push({id:uid(), name, stakeholder:overlay.querySelector('#pWho').value.trim(),
+      S.projects.push({id:uid(), name, stakeholder:pWho.getValue(),
         deadline:overlay.querySelector('#pDeadline').value||null, status:'进行中', createdAt:Date.now(), steps:[], takeaways:[]});
     }
     persist('projects'); overlay.remove(); ui.tab='projects'; render();
@@ -1856,8 +1922,8 @@ function renderTemplateModal(draft, editId){
   overlay.innerHTML = `<div class="modal" style="max-width:640px;">
     <h2>${editId?'编辑周期事项':'新建周期事项'}</h2>
     <div class="inline">
-      <div class="field"><label>事项名称</label><input type="text" id="tName" value="${draft.name}" placeholder="例如：VC组周会组织与会后跟进"></div>
-      <div class="field"><label>需求方</label><input type="text" id="tWho" list="globalStkList" value="${draft.stakeholder}" placeholder="VC组"></div>
+      <div class="field"><label>事项名称${editId?'':'（新建时可以直接打一句话描述，回车让 AI 自动帮你填需求方）'}</label><input type="text" id="tName" value="${draft.name}" placeholder="例如：VC组周会组织与会后跟进"></div>
+      <div class="field"><label>需求方</label><div id="tWhoWrap"></div></div>
     </div>
 
     <div class="cardsplit">
@@ -1871,6 +1937,18 @@ function renderTemplateModal(draft, editId){
     <div class="btnrow"><button class="btn ghost" id="tCancel">取消</button><button class="btn primary" id="tSave">保存</button></div>
   </div>`;
   document.body.appendChild(overlay);
+  const tWho = renderStakeholderPicker(draft.stakeholder);
+  overlay.querySelector('#tWhoWrap').appendChild(tWho);
+  if(!editId){
+    wireEnterToAIParse(overlay.querySelector('#tName'), (d)=>{
+      overlay.querySelector('#tName').value = d.title || overlay.querySelector('#tName').value;
+      if(d.stakeholder) tWho.setValue([d.stakeholder]);
+      if(!draft.steps.length && d.title){
+        draft.steps.push({content:d.title, offsetDays:0, time:d.noTime?null:(d.time||'09:00'), noTime:!!d.noTime, reminder:true});
+        renderStepRows();
+      }
+    });
+  }
 
   const recWrap = overlay.querySelector('#recFieldsWrap');
   recWrap.innerHTML = recurrenceFieldsHTML('rec', rec);
@@ -1910,7 +1988,7 @@ function renderTemplateModal(draft, editId){
     const name = overlay.querySelector('#tName').value.trim();
     if(!name || !draft.steps.length){ alert('请填写事项名称并至少添加一个步骤'); return; }
     if(rec.freq==='weekly' && !rec.weekdays.length){ alert('请至少勾选一个星期'); return; }
-    const stakeholder = overlay.querySelector('#tWho').value.trim();
+    const stakeholder = tWho.getValue();
     if(editId){
       const t = S.templates.find(x=>x.id===editId);
       t.name=name; t.stakeholder=stakeholder; t.recurrence=rec;
@@ -2170,6 +2248,26 @@ function openCapture(prefill){
 function blankDraft(text){
   return {title:text.slice(0,30), stakeholder:'', category:'adhoc', dueDate:null, time:null, noTime:true, multiStepGuess:false};
 }
+// Wires "回车 = AI 解析" onto a plain name/title input elsewhere in the app (project-library
+// creation forms), reusing the same aiParse() used by the quick-add bar. onFilled(draft) is
+// called with the first parsed item so the caller can push values into its own form fields.
+function wireEnterToAIParse(inputEl, onFilled){
+  inputEl.onkeydown = async (e)=>{
+    if(e.key!=='Enter') return;
+    e.preventDefault();
+    const text = inputEl.value.trim();
+    if(!text) return;
+    showToast('AI 解析中…');
+    try{
+      const drafts = await aiParse(text);
+      const d = (drafts && drafts.length) ? drafts[0] : blankDraft(text);
+      onFilled(d);
+      showToast('已用 AI 识别结果自动填充，请检查一下');
+    }catch(err){
+      showToast('AI 解析失败（'+err.message+'），请手动填写');
+    }
+  };
+}
 
 function buildParsePrompt(text){
   const projectList = S.projects.filter(p=>p.status!=='已结束').map(p=>`project:${p.id} = ${p.name}`);
@@ -2286,16 +2384,14 @@ function openConfirmCards(drafts){
       else if(kind==='recurring'){ const t=S.templates.find(x=>x.id===id); if(t) projectText=t.name; }
     }
     if(!projectText && d.category==='project') projectText = d.title;
-    return {...d, addToDropdown:false, projectText, createProject:true};
+    return {...d, stakeholder: stkArr(d.stakeholder), addToDropdown:false, projectText, createProject:true};
   });
   renderConfirmModal();
 }
 function renderConfirmModal(){
   const old = document.getElementById('confirmOverlay'); if(old) old.remove();
   const overlay = el(`<div class="overlay" id="confirmOverlay"></div>`);
-  const stkOpts = curatedStkOptions();
   overlay.innerHTML = `<div class="modal" style="max-width:600px;"><h2>确认入库（${ui.pendingCards.length} 项）</h2>
-    <datalist id="stkOptsList">${stkOpts.map(o=>`<option value="${o}">`).join('')}</datalist>
     <div id="cardsWrap"></div>
     <div class="btnrow"><button class="btn ghost" id="cfCancel">全部取消</button><button class="btn primary" id="cfSaveAll">确认全部入库</button></div>
   </div>`;
@@ -2311,7 +2407,7 @@ function renderConfirmModal(){
       <h3>事项 ${i+1} ${d.multiStepGuess?'<span class="aiflag">可能含多步骤</span>':''}</h3>
       <div class="field"><label>事项名称</label><input type="text" value="${d.title}" data-f="title" data-i="${i}"></div>
       <div class="inline">
-        <div class="field"><label>需求方</label><input type="text" list="stkOptsList" value="${d.stakeholder}" data-f="stakeholder" data-i="${i}"></div>
+        <div class="field"><label>需求方</label><div id="stkWrap_${i}"></div></div>
         <div class="field" style="${matchedLinkTo?'opacity:.45;':''}"><label>类别${matchedLinkTo?'（已关联项目/周期事项，忽略此项）':''}</label><select data-f="category" data-i="${i}" ${matchedLinkTo?'disabled':''}>
           <option value="adhoc" ${d.category==='adhoc'?'selected':''}>按需日常型</option>
           <option value="project" ${d.category==='project'?'selected':''}>项目制</option>
@@ -2337,6 +2433,8 @@ function renderConfirmModal(){
       <div class="field"><label>经验标签（可选，逗号分隔）</label><input type="text" value="${d.experienceTags||''}" data-f="experienceTags" data-i="${i}" placeholder="时间管理, 沟通协调"></div>
     `;
     cw.appendChild(card);
+    const stkWho = renderStakeholderPicker(d.stakeholder, (val)=>{ d.stakeholder = val; });
+    card.querySelector(`#stkWrap_${i}`).appendChild(stkWho);
   });
   overlay.querySelectorAll('[data-f]').forEach(inp=>{
     inp.onchange = ()=>{
@@ -2348,7 +2446,9 @@ function renderConfirmModal(){
   overlay.querySelector('#cfCancel').onclick = ()=>overlay.remove();
   overlay.querySelector('#cfSaveAll').onclick = ()=>{
     ui.pendingCards.forEach(d=>{
-      if(d.addToDropdown && d.stakeholder && !S.dropdowns.stakeholders.includes(d.stakeholder)) S.dropdowns.stakeholders.push(d.stakeholder);
+      if(d.addToDropdown){
+        stkArr(d.stakeholder).forEach(name=>{ if(name && !S.dropdowns.stakeholders.includes(name)) S.dropdowns.stakeholders.push(name); });
+      }
       const expContent = (d.experience||'').trim();
       const expTags = (d.experienceTags||'').split(',').map(s=>s.trim()).filter(Boolean);
       function makeEntry(stepId){ return {id:uid(), content:expContent, tags:expTags, createdAt:Date.now(), stepLabel:d.title, stepId: stepId||null}; }
