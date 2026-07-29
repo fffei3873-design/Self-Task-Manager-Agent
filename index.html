@@ -134,11 +134,16 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
 .toast{position:fixed;bottom:96px;right:26px;background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;font-size:13px;z-index:200;box-shadow:var(--shadow);max-width:300px;}
 
 .libcard{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);}
-.libcard .lh{display:grid;grid-template-columns:18px 1fr 150px 88px auto;align-items:center;gap:10px;cursor:pointer;}
+.libcard .lh{display:grid;grid-template-columns:18px 1fr 150px 88px 130px 76px;align-items:center;gap:10px;cursor:pointer;}
+.libcard .lh.talh{grid-template-columns:18px 1fr 100px 90px 100px;}
+.col-deadline{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden;white-space:nowrap;}
+.talh .tag, .talh button{justify-self:end;}
+.talh .muted{justify-self:end;}
 .libcard .lh h3{font-size:14.5px;}
 .libcard .lh .car{transition:.15s;color:var(--muted);}
 .libcard.open .lh .car{transform:rotate(90deg);}
-.libtablehead{display:grid;grid-template-columns:18px 1fr 150px 88px auto;gap:10px;padding:0 16px 6px;}
+.libtablehead{display:grid;grid-template-columns:18px 1fr 150px 88px 130px 76px;gap:10px;padding:0 16px 6px;}
+.libtablehead.talh{grid-template-columns:18px 1fr 100px 90px 100px;}
 .libtablehead span{font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:.3px;text-transform:uppercase;}
 .col-who-plain{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .libcard .detail{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);}
@@ -213,8 +218,10 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
   .weekstrip{overflow-x:auto;width:100%;}
   .rowgrid{grid-template-columns:52px 68px 1fr 28px 28px 16px;gap:6px;}
   .tablehead{grid-template-columns:52px 68px 1fr 28px 28px 16px;gap:6px;}
-  .libcard .lh{grid-template-columns:16px 1fr 76px 70px auto;gap:6px;}
-  .libtablehead{grid-template-columns:16px 1fr 76px 70px auto;gap:6px;}
+  .libcard .lh{grid-template-columns:16px 1fr 76px 70px 90px 60px;gap:6px;}
+  .libtablehead{grid-template-columns:16px 1fr 76px 70px 90px 60px;gap:6px;}
+  .libcard .lh.talh{grid-template-columns:16px 1fr 70px 60px 60px;}
+  .libtablehead.talh{grid-template-columns:16px 1fr 70px 60px 60px;}
 }
 </style>
 </head>
@@ -1716,6 +1723,19 @@ function moveAdhocTakeaways(title, targetObj){
     persist('takeawaysByName');
   }
 }
+function updateTakeawayEntry(e, updates){
+  let list = null, persistKey = null;
+  if(e.sourceKind==='周期事项'){ const t = S.templates.find(x=>x.id===e.sourceId); if(t){ list=t.takeaways; persistKey='templates'; } }
+  else if(e.sourceKind==='项目'){ const p = S.projects.find(x=>x.id===e.sourceId); if(p){ list=p.takeaways; persistKey='projects'; } }
+  else if(e.sourceKind==='按需事项'){ list = S.takeawaysByName[e.stepLabel]; persistKey='takeawaysByName'; }
+  else if(e.sourceKind==='自由记录'){ list = S.freeTakeaways; persistKey='freeTakeaways'; }
+  if(!list) return;
+  const entry = list.find(x=>x.id===e.id);
+  if(!entry) return;
+  if(updates.content!==undefined) entry.content = updates.content;
+  if(updates.tags!==undefined) entry.tags = updates.tags;
+  if(persistKey) persist(persistKey);
+}
 function deleteTakeawayEntry(e){
   if(e.sourceKind==='周期事项'){
     const t = S.templates.find(x=>x.id===e.sourceId);
@@ -1786,6 +1806,7 @@ function renderTakeawaysTab(){
       groupsContainer.appendChild(el(`<div class="empty"><b>没有匹配的经验记录</b>完成任务时会提示记录，或者随时点检查点旁的 💡+ 按钮记一条，也可以点右上角"+ 新增经验"单独记一笔。</div>`));
       return;
     }
+    groupsContainer.appendChild(el(`<div class="libtablehead talh"><span></span><span>${view==='tag'?'标签':'事项'}</span><span>${view==='tag'?'':'类型'}</span><span>数量</span><span></span></div>`));
     const groups = {};
     if(view==='tag'){
       // Flattened: grouped purely by tag, spanning every source. An entry with multiple tags
@@ -1815,11 +1836,11 @@ function renderTakeawaysTab(){
       const sourceCls = g.sourceKind==='周期事项'?'cat-recurring':(g.sourceKind==='项目'?'cat-project':'cat-adhoc');
       const card = el(`<div class="libcard ${open?'open':''}"></div>`);
       card.innerHTML = `
-        <div class="lh">
+        <div class="lh talh">
           <span class="car">▸</span><h3>${g.label}</h3>
-          ${g.kind==='source'? `<span class="tag ${sourceCls}">${g.sourceKind}</span>` : ''}
+          ${g.kind==='source'? `<span class="tag ${sourceCls}">${g.sourceKind}</span>` : `<span></span>`}
           <span class="muted mono" style="font-size:11px;">${g.entries.length} 条经验</span>
-          ${(g.kind==='source' && g.navKind!=='name' && g.navKind!=='free')? `<button class="btn ghost sm" data-navto="1" style="margin-left:auto;">查看事项</button>`:''}
+          ${(g.kind==='source' && g.navKind!=='name' && g.navKind!=='free')? `<button class="btn ghost sm" data-navto="1">查看事项</button>` : `<span></span>`}
         </div>
         <div class="detail"></div>
       `;
@@ -1827,20 +1848,42 @@ function renderTakeawaysTab(){
       g.entries.forEach(e=>{
         const entrySourceCls = e.sourceKind==='周期事项'?'cat-recurring':(e.sourceKind==='项目'?'cat-project':'cat-adhoc');
         const item = el(`<div style="padding:8px 0;border-bottom:1px solid var(--line-soft);"></div>`);
-        item.innerHTML = `<div style="font-size:13px;display:flex;align-items:flex-start;gap:8px;">
-            <span style="flex:1;">${e.content}</span>
-            <button class="btn ghost sm" data-deltakeaway="1" style="color:var(--danger);flex:0 0 auto;">删除</button>
-          </div>
-          <div class="meta" style="margin-top:4px;">
-            ${g.kind==='tag'? `<span class="tag ${entrySourceCls}" style="font-size:10.5px;">${e.source}</span>` : ''}
-            ${e.stepLabel && e.stepLabel!==e.source? `<span class="tag time">${e.stepLabel}</span>`:''}
-            ${g.kind==='source'? (e.tags||[]).map(t=>`<span class="tag" style="background:var(--jade-soft);color:var(--jade);">${t}</span>`).join('') : ''}
-            <span class="muted mono" style="font-size:10px;margin-left:auto;">${new Date(e.createdAt).toLocaleDateString('zh-CN')}</span>
-          </div>`;
-        item.querySelector('[data-deltakeaway]').onclick = (ev)=>{
-          ev.stopPropagation();
-          if(confirm('确定删除这条经验记录吗？')){ deleteTakeawayEntry(e); refresh(); }
-        };
+        function paintView(){
+          item.innerHTML = `<div style="font-size:13px;display:flex;align-items:flex-start;gap:8px;">
+              <span style="flex:1;cursor:text;" data-editentry="1">${e.content}</span>
+              <button class="btn ghost sm" data-edittakeaway="1" style="flex:0 0 auto;">编辑</button>
+              <button class="btn ghost sm" data-deltakeaway="1" style="color:var(--danger);flex:0 0 auto;">删除</button>
+            </div>
+            <div class="meta" style="margin-top:4px;">
+              ${g.kind==='tag'? `<span class="tag ${entrySourceCls}" style="font-size:10.5px;">${e.source}</span>` : ''}
+              ${e.stepLabel && e.stepLabel!==e.source? `<span class="tag time">${e.stepLabel}</span>`:''}
+              ${g.kind==='source'? (e.tags||[]).map(t=>`<span class="tag" style="background:var(--jade-soft);color:var(--jade);">${t}</span>`).join('') : ''}
+              <span class="muted mono" style="font-size:10px;margin-left:auto;">${new Date(e.createdAt).toLocaleDateString('zh-CN')}</span>
+            </div>`;
+          const openEdit = ()=>{
+            item.innerHTML = `<div class="field"><textarea data-etext style="min-height:50px;">${e.content}</textarea></div>
+              <div class="field"><label style="font-size:11px;">标签</label><div data-etagswrap></div></div>
+              <div class="btnrow" style="margin-top:6px;"><button class="btn ghost sm" data-ecancel>取消</button><button class="btn primary sm" data-esave>保存</button></div>`;
+            const eTags = renderTagPicker(e.tags||[]);
+            item.querySelector('[data-etagswrap]').appendChild(eTags);
+            item.querySelector('[data-ecancel]').onclick = (ev)=>{ ev.stopPropagation(); paintView(); };
+            item.querySelector('[data-esave]').onclick = (ev)=>{
+              ev.stopPropagation();
+              const newContent = item.querySelector('[data-etext]').value.trim();
+              if(!newContent){ alert('内容不能为空'); return; }
+              e.content = newContent; e.tags = eTags.getValue();
+              updateTakeawayEntry(e, {content:newContent, tags:e.tags});
+              paintView();
+            };
+          };
+          item.querySelector('[data-edittakeaway]').onclick = (ev)=>{ ev.stopPropagation(); openEdit(); };
+          item.querySelector('[data-editentry]').onclick = (ev)=>{ ev.stopPropagation(); openEdit(); };
+          item.querySelector('[data-deltakeaway]').onclick = (ev)=>{
+            ev.stopPropagation();
+            if(confirm('确定删除这条经验记录吗？')){ deleteTakeawayEntry(e); refresh(); }
+          };
+        }
+        paintView();
         detail.appendChild(item);
       });
       card.querySelector('.lh').onclick = (e)=>{
@@ -1891,7 +1934,7 @@ function renderUnifiedProjects(){
     ...S.templates.map(t=>({kind:'recurring', createdAt:t.createdAt, ref:t}))
   ].sort((a,b)=>b.createdAt-a.createdAt);
   if(!items.length) wrap.appendChild(el(`<div class="empty"><b>这里还是空的</b>点右上角"+新建"，创建一个项目或周期事项。</div>`));
-  else wrap.appendChild(el(`<div class="libtablehead"><span></span><span>标题</span><span>需求方</span><span>事项类型</span><span></span></div>`));
+  else wrap.appendChild(el(`<div class="libtablehead"><span></span><span>标题</span><span>需求方</span><span>事项类型</span><span>截止日期</span><span>步骤</span></div>`));
   items.forEach(it=>{
     wrap.appendChild(it.kind==='project' ? renderProjectCard(it.ref) : renderRecurringCard(it.ref));
   });
@@ -1931,11 +1974,11 @@ function renderProjectCard(p){
       <h3 data-clickmeta="1" style="cursor:text;">${p.name}</h3>
       <span class="col-who-plain" data-clickmeta="1" style="cursor:text;">${stkLabel(p.stakeholder)||'+ 需求方'}</span>
       <span class="tag cat-project">项目制</span>
-      <span style="display:flex;align-items:center;gap:6px;justify-content:flex-end;">
-        <span class="tag time" data-clickmeta="1" style="cursor:text;${p.deadline?'':'opacity:.5;'}">${p.deadline?`截止 ${p.deadline}`:'+ 截止日期'}</span>
+      <span class="col-deadline" data-clickmeta="1" style="cursor:text;">
+        <span class="tag time" style="${p.deadline?'':'opacity:.5;'}">${p.deadline?`截止 ${p.deadline}`:'+ 截止日期'}</span>
         ${p.status==='已结束'?'<span class="tag" style="background:var(--paper-dim);color:var(--muted);">已结束</span>':''}
-        <span class="muted mono" style="font-size:11px;">${doneCount}/${(p.steps||[]).length} 步骤</span>
       </span>
+      <span class="muted mono" style="font-size:11px;text-align:right;">${doneCount}/${(p.steps||[]).length} 步骤</span>
     </div>`;
   card.innerHTML = lhHtml + `
     <div class="detail">
@@ -2055,6 +2098,7 @@ function renderRecurringCard(t){
       <h3 data-clickmeta="1" style="cursor:text;">${t.name}</h3>
       <span class="col-who-plain" data-clickmeta="1" style="cursor:text;">${stkLabel(t.stakeholder)||'+ 需求方'}</span>
       <span class="tag cat-recurring">周期性</span>
+      <span class="col-deadline"></span>
       <span class="muted mono" style="font-size:11px;text-align:right;">${t.steps.length} 步骤</span>
     </div>`;
   card.innerHTML = lhHtml + `
