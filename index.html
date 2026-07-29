@@ -54,12 +54,24 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
 .daylabel .n{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
 .daylabel hr{flex:1;border:none;border-top:1px dashed var(--line);}
 
-.row{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--radius);padding:11px 13px;margin-bottom:8px;box-shadow:var(--shadow);}
+.row{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--radius);padding:9px 13px;margin-bottom:6px;box-shadow:var(--shadow);}
 .row .top{display:flex;align-items:flex-start;gap:10px;}
+.rowgrid{display:grid;grid-template-columns:80px 124px 1fr 32px 32px 20px;align-items:center;gap:12px;}
+.tablehead{display:grid;grid-template-columns:80px 124px 1fr 32px 32px 20px;gap:12px;padding:2px 13px 7px;}
+.tablehead span{font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:.3px;text-transform:uppercase;}
+.rowgrid .col-time{font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);line-height:1.35;}
+.rowgrid .col-time .ov{display:block;color:var(--amber);font-size:10px;margin-top:1px;font-family:inherit;}
+.rowgrid .col-who{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rowgrid .col-content{min-width:0;}
+.rowgrid .col-content .subtitle{font-size:11px;color:var(--muted);margin-top:2px;cursor:pointer;}
+.rowgrid .col-content .subtitle:hover{color:var(--ink);text-decoration:underline;}
+.takeawaybtn{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:13px;flex:0 0 auto;cursor:pointer;transition:.12s;}
+.takeawaybtn:hover{border-color:var(--jade);color:var(--jade);}
+.takeawaybtn.has{color:var(--jade);border-color:var(--jade-soft);background:var(--jade-soft);}
 .chk{width:19px;height:19px;border-radius:6px;border:1.6px solid var(--ink-soft);flex:0 0 auto;margin-top:1px;display:flex;align-items:center;justify-content:center;background:transparent;color:transparent;transition:.12s;}
 .chk.done{background:var(--jade);border-color:var(--jade);color:#fff;}
 .row .body{flex:1;min-width:0;}
-.row .title{font-size:14.5px;font-weight:500;line-height:1.35;}
+.row .title{font-size:14.5px;font-weight:500;line-height:1.35;cursor:text;}
 .row.done .title{text-decoration:line-through;color:var(--muted);}
 .meta{display:flex;flex-wrap:nowrap;gap:6px;margin-top:5px;align-items:center;overflow-x:auto;scrollbar-width:none;}
 .meta::-webkit-scrollbar{display:none;}
@@ -120,10 +132,13 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
 .toast{position:fixed;bottom:96px;right:26px;background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;font-size:13px;z-index:200;box-shadow:var(--shadow);max-width:300px;}
 
 .libcard{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);}
-.libcard .lh{display:flex;align-items:center;gap:10px;cursor:pointer;}
-.libcard .lh h3{font-size:14.5px;flex:1;}
+.libcard .lh{display:grid;grid-template-columns:18px 1fr 150px 88px auto;align-items:center;gap:10px;cursor:pointer;}
+.libcard .lh h3{font-size:14.5px;}
 .libcard .lh .car{transition:.15s;color:var(--muted);}
 .libcard.open .lh .car{transform:rotate(90deg);}
+.libtablehead{display:grid;grid-template-columns:18px 1fr 150px 88px auto;gap:10px;padding:0 16px 6px;}
+.libtablehead span{font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:.3px;text-transform:uppercase;}
+.col-who-plain{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .libcard .detail{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);}
 .libcard.open .detail{display:block;}
 .addstepline{display:flex;gap:6px;margin-top:10px;}
@@ -194,6 +209,10 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
   nav.tabs{overflow-x:auto;}
   .weeknav{width:100%;margin-left:0;}
   .weekstrip{overflow-x:auto;width:100%;}
+  .rowgrid{grid-template-columns:52px 68px 1fr 28px 28px 16px;gap:6px;}
+  .tablehead{grid-template-columns:52px 68px 1fr 28px 28px 16px;gap:6px;}
+  .libcard .lh{grid-template-columns:16px 1fr 76px 70px auto;gap:6px;}
+  .libtablehead{grid-template-columns:16px 1fr 76px 70px auto;gap:6px;}
 }
 </style>
 </head>
@@ -437,6 +456,71 @@ async function loadAll(){
   S.todayOrder = await loadKey('todayOrder', {date:null, order:[]});
   S.raw = await loadKey('raw', []);
   if(S.todayOrder.date !== todayStr()) S.todayOrder = {date:todayStr(), order:[]};
+  // One-time migrations from the old "one shared recurrence + per-step day offset" model to the
+  // new "each step has its own independent recurrence rule" model. Safe to run on every load —
+  // both are no-ops once a template/cycle has already been migrated.
+  const templatesChanged = migrateTemplatesToPerStepRecurrence();
+  const cyclesChanged = migrateCyclesToFlatSteps();
+  if(templatesChanged) await persist('templates');
+  if(cyclesChanged) await persist('cycles');
+}
+// Old shape: t.recurrence (shared) + step.offsetDays (relative to the shared anchor).
+// New shape: each step carries its own independent step.repeat rule.
+// For offset=0 steps this is an exact conversion. For nonzero offsets on a weekly rule we shift
+// the weekday selection to match; for other frequencies we shift the rule's start date instead
+// (an approximation — the day-of-month/nth-weekday pattern itself isn't shifted) since a fully
+// generic date-offset-to-rule conversion isn't reliable for every recurrence type.
+function migrateTemplatesToPerStepRecurrence(){
+  let changed = false;
+  S.templates.forEach(t=>{
+    if(t.recurrence){
+      const base = t.recurrence;
+      (t.steps||[]).forEach(st=>{
+        if(!st.repeat){
+          const offset = st.offsetDays||0;
+          let rec = JSON.parse(JSON.stringify(base));
+          if(offset!==0){
+            if(rec.freq==='weekly' && Array.isArray(rec.weekdays)){
+              const shift = ((offset%7)+7)%7;
+              rec.weekdays = rec.weekdays.map(wd=>(wd+shift)%7);
+            } else if(rec.rangeStart){
+              rec.rangeStart = fmtDate(addDays(parseDate(rec.rangeStart), offset));
+            }
+          }
+          st.repeat = rec;
+          delete st.offsetDays;
+          changed = true;
+        }
+      });
+      delete t.recurrence;
+      changed = true;
+    }
+  });
+  return changed;
+}
+// Old shape: one row per anchor date, bundling every step's occurrence together (c.steps=[...]).
+// New shape: one flat row per (step, occurrence date) — c IS the occurrence, no bundling.
+// This also preserves each step-occurrence's done/skipped status and content exactly as it was.
+function migrateCyclesToFlatSteps(){
+  let changed = false;
+  const flat = [];
+  S.cycles.forEach(c=>{
+    if(c.steps){
+      changed = true;
+      c.steps.forEach(st=>{
+        flat.push({
+          id: st.id, templateId: c.templateId, stepDefId: st.stepDefId||null,
+          date: st.date, content: st.content, time: st.time, noTime: st.noTime,
+          status: st.status, skipped: !!st.skipped || !!c.skipped,
+          reminder: st.reminder!==false, createdAt: c.createdAt||Date.now()
+        });
+      });
+    } else {
+      flat.push(c);
+    }
+  });
+  S.cycles = flat;
+  return changed;
 }
 async function persist(part){
   const keys = ['templates','projects','instances','cycles','dropdowns','takeawaysByName','freeTakeaways','todayOrder','raw'];
@@ -735,42 +819,28 @@ function renderRecurrencePicker(initialRec, onChange, startOpen){
   return wrap;
 }
 
-/* ============ cycle generation ============ */
+/* ============ per-step recurrence generation ============ */
+// S.cycles now holds one row per (template step, occurrence date) — flat, not bundled by a
+// shared anchor — since different steps in the same 周期事项 can run on entirely different
+// schedules (weekly / monthly / yearly) that have nothing to do with each other.
 function ensureCyclesGenerated(){
   const today = new Date();
   const windowStart = addDays(today, -21);
   const windowEnd = addDays(today, 60);
   for(const t of S.templates){
-    const rec = t.recurrence || defaultRecurrence();
-    const anchors = generateAnchorsInWindow(rec, windowStart, windowEnd);
-    anchors.forEach(anchorStr=>{
-      const cycleKey = anchorStr;
-      if(S.cycles.find(c=>c.templateId===t.id && c.cycleKey===cycleKey)) return;
-      const anchor = parseDate(anchorStr);
-      const steps = t.steps.map(st=>({
-        id:uid(), stepDefId:st.id, content:st.content,
-        date: fmtDate(addDays(anchor, st.offsetDays||0)),
-        time: st.noTime? null : st.time, noTime: !!st.noTime,
-        reminder: st.reminder!==false, status:'todo'
-      }));
-      S.cycles.push({id:uid(), templateId:t.id, cycleKey, anchorDate:cycleKey, steps, createdAt:Date.now(), skipped:false});
+    (t.steps||[]).forEach(st=>{
+      if(!st.repeat) return; // guard: shouldn't happen post-migration, but don't crash if it does
+      const dates = generateAnchorsInWindow(st.repeat, windowStart, windowEnd);
+      dates.forEach(dateStr=>{
+        if(S.cycles.find(c=>c.templateId===t.id && c.stepDefId===st.id && c.date===dateStr)) return;
+        S.cycles.push({
+          id:uid(), templateId:t.id, stepDefId:st.id, date:dateStr,
+          content:st.content, time: st.noTime? null : st.time, noTime: !!st.noTime,
+          reminder: st.reminder!==false, status:'todo', skipped:false, createdAt:Date.now()
+        });
+      });
     });
   }
-}
-function currentCycleFor(t){
-  const cands = S.cycles.filter(c=>c.templateId===t.id);
-  if(!cands.length) return null;
-  const offsets = t.steps.map(s=>s.offsetDays||0);
-  const minOffset = offsets.length ? Math.min(0, ...offsets) : 0;
-  const maxOffset = offsets.length ? Math.max(0, ...offsets) : 0;
-  const today = todayStr();
-  let best = cands.find(c=>{
-    const start=fmtDate(addDays(parseDate(c.anchorDate), minOffset));
-    const end=fmtDate(addDays(parseDate(c.anchorDate), maxOffset));
-    return today>=start && today<=end;
-  });
-  if(!best) best = cands.slice().sort((a,b)=>parseDate(a.anchorDate)-parseDate(b.anchorDate)).find(c=>c.anchorDate>=today) || cands[cands.length-1];
-  return best;
 }
 
 /* ============ unified feed rows (today/week) ============ */
@@ -778,17 +848,13 @@ function buildRowsForDate(dateStr){
   const rows=[];
   for(const c of S.cycles){
     if(c.skipped) continue;
+    if(c.date!==dateStr) continue; // recurring steps only show on their own scheduled day — no carry-forward when overdue
     const t = S.templates.find(x=>x.id===c.templateId);
     if(!t) continue;
-    for(const st of c.steps){
-      if(st.skipped) continue;
-      const due = st.date;
-      if(due!==dateStr) continue; // recurring steps only show on their own scheduled day — no carry-forward when overdue
-      rows.push({ key:`cycle:${c.id}:step:${st.id}`, kind:'recurringStep', category:'recurring',
-        title:`${t.name} · ${st.content}`, stakeholder:t.stakeholder, time:st.time, noTime:st.noTime,
-        status:st.status, createdAt:c.createdAt, overdueDays:0,
-        refCycle:c, refStep:st, refTemplate:t });
-    }
+    rows.push({ key:`cycle:${c.id}`, kind:'recurringStep', category:'recurring',
+      title:c.content, parentName:t.name, stakeholder:t.stakeholder, time:c.time, noTime:c.noTime,
+      status:c.status, createdAt:c.createdAt, overdueDays:0,
+      refCycle:c, refStep:c, refTemplate:t });
   }
   for(const inst of S.instances){
     const due = inst.dueDate || null;
@@ -818,7 +884,7 @@ function buildRowsForDate(dateStr){
       }
       if(!showToday) return;
       rows.push({ key:`project:${p.id}:step:${next.id}`, kind:'projectNext', category:'project',
-        title:`${p.name} · ${next.content}`, stakeholder:p.stakeholder, time:next.time, noTime: !next.time,
+        title:next.content, parentName:p.name, stakeholder:p.stakeholder, time:next.time, noTime: !next.time,
         status:next.status, createdAt:p.createdAt, overdueDays: due && due<dateStr? diffDays(due,dateStr):0,
         refProject:p, refStep:next });
     });
@@ -984,7 +1050,7 @@ function renderToday(){
   rows = sortRows(rows, true);
   const list = el(`<div id="rowlist"></div>`);
   if(!rows.length){ list.appendChild(el(`<div class="empty"><b>今天暂时干净</b>没有到期的事项，在上面输入框回车随手记一条。</div>`)); }
-  else { rows.forEach((r,i)=> list.appendChild(renderRow(r, true, i, rows.length))); }
+  else { list.appendChild(el(tableHeaderHtml())); rows.forEach((r,i)=> list.appendChild(renderRow(r, true, i, rows.length))); }
   wrap.appendChild(list);
   setTimeout(()=>{
     const sel=document.getElementById('whoFilter'); if(sel) sel.onchange=()=>{ ui.whoFilter=sel.value; render(); };
@@ -1010,10 +1076,13 @@ function renderWeek(){
     let rows = buildRowsForDate(ds); rows = applyWhoFilter(rows); rows = sortRows(rows, ds===todayStr());
     wrap.appendChild(el(`<div class="daylabel" id="daysec_${ds}"><span class="d">${WEEKDAY_NAMES_FULL[i]}</span><span class="n mono">${ds}${ds===todayStr()?' · 今天':''}</span><hr></div>`));
     if(!rows.length){ wrap.appendChild(el(`<div class="empty" style="padding:14px;">暂无安排</div>`)); }
-    else rows.forEach((r,idx)=> wrap.appendChild(renderRow(r, false, idx, rows.length)));
+    else { wrap.appendChild(el(tableHeaderHtml())); rows.forEach((r,idx)=> wrap.appendChild(renderRow(r, false, idx, rows.length))); }
   }
   setTimeout(()=>{ const sel=document.getElementById('whoFilter'); if(sel) sel.onchange=()=>{ ui.whoFilter=sel.value; render(); }; wireWeekStrip(); },0);
   return wrap;
+}
+function tableHeaderHtml(){
+  return `<div class="tablehead"><span>时间</span><span>需求方</span><span>事项内容</span><span>状态</span><span>经验</span><span></span></div>`;
 }
 function catTagHtml(cat){
   const map = {recurring:['周期','cat-recurring'], adhoc:['日常','cat-adhoc'], project:['项目','cat-project']};
@@ -1059,33 +1128,26 @@ function renderCheckpointRow(r, movable){
   }
   const done = r.status==='done';
   const row = el(`<div class="row ${done?'done':''}"></div>`);
-  const timeTag = r.time && !r.noTime ? `<span class="tag time">${r.time}</span>` : (r.noTime?`<span class="tag time">无固定时间</span>`:'');
-  const overdueTag = r.overdueDays? `<span class="tag overdue">已逾期${r.overdueDays}天</span>` : '';
-  const whoTag = stkLabel(r.stakeholder)? `<span class="tag who">${stkLabel(r.stakeholder)}</span>` : '';
+  const timeTxt = r.noTime ? '无固定时间' : (r.time || '—');
+  const overdueHtml = r.overdueDays? `<span class="ov">逾期${r.overdueDays}天</span>` : '';
+  const whoTxt = stkLabel(r.stakeholder) || '—';
+  const parentIcon = r.category==='recurring' ? '🔁' : '📁';
+  const takeawayList = r.kind==='recurringStep' ? r.refTemplate.takeaways : r.refProject.takeaways;
+  const takeawayStepId = r.kind==='recurringStep' ? r.refStep.stepDefId : r.refStep.id;
+  const hasTakeaway = (takeawayList||[]).some(e=>e.stepId && e.stepId===takeawayStepId);
   row.innerHTML = `
-    <div class="top">
+    <div class="rowgrid">
+      <div class="col-time">${timeTxt}${overdueHtml}</div>
+      <div class="col-who" title="${whoTxt}">${whoTxt}</div>
+      <div class="col-content">
+        <div class="title" data-clickedit="1">${r.title}</div>
+        ${r.parentName? `<div class="subtitle" data-navparent="1">${parentIcon} ${r.parentName}</div>`:''}
+      </div>
       <button class="chk ${done?'done':''}" data-key="${r.key}">${done?'✓':''}</button>
-      <div class="body">
-        <div class="title" data-clickedit="1" style="cursor:text;">${r.title}</div>
-        <div class="meta">${catTagHtml(r.category)}${timeTag}${overdueTag}${whoTag}</div>
-      </div>
-      <div class="rowbtns" data-rowbtns="1">
-        ${movable? `<span class="draghandle" title="拖拽调整顺序">⠿</span>`:''}
-      </div>
+      <button class="takeawaybtn ${hasTakeaway?'has':''}" data-addtakeaway="1" title="${hasTakeaway?'已有经验记录，点击补充':'记录经验'}">💡</button>
+      ${movable? `<span class="draghandle" title="拖拽调整顺序">⠿</span>` : `<span></span>`}
     </div>
   `;
-  if(r.kind==='recurringStep'){
-    const tag = stepTakeawayTag(r.refTemplate.takeaways, r.refStep.stepDefId);
-    if(tag) row.querySelector('.meta').appendChild(tag);
-    const expanded = stepTakeawayExpanded(r.refTemplate.takeaways, r.refStep.stepDefId);
-    if(expanded) row.appendChild(expanded);
-  } else if(r.kind==='projectNext'){
-    const tag = stepTakeawayTag(r.refProject.takeaways, r.refStep.id);
-    if(tag) row.querySelector('.meta').appendChild(tag);
-    const expanded = stepTakeawayExpanded(r.refProject.takeaways, r.refStep.id);
-    if(expanded) row.appendChild(expanded);
-  }
-  if(r.kind==='recurringStep' && ui.openCards['cy_'+r.refCycle.id]) row.appendChild(renderChain(r.refCycle, r.refTemplate));
   if(movable){
     row.draggable = true;
     row.dataset.rowkey = r.key;
@@ -1103,17 +1165,16 @@ function renderCheckpointRow(r, movable){
   setTimeout(()=>{
     row.querySelector('.chk').onclick = ()=> toggleRow(r);
     row.querySelector('[data-clickedit]').onclick = ()=>{ ui.openCards[editKey]=true; render(); };
-    const menuItems = [{label:'💡 记录经验', onClick:()=>{
+    row.querySelector('[data-addtakeaway]').onclick = ()=>{
       if(r.kind==='recurringStep') quickAddTakeawayFor('template', r.refTemplate, r.refStep.content, r.refStep.stepDefId);
       else if(r.kind==='projectNext') quickAddTakeawayFor('project', r.refProject, r.refStep.content, r.refStep.id);
-    }}];
-    if(r.kind==='recurringStep'){
-      const expanded = !!ui.openCards['cy_'+r.refCycle.id];
-      menuItems.push({label: expanded?'收起本轮任务':'展开本轮任务', onClick:()=>{ ui.openCards['cy_'+r.refCycle.id]=!expanded; render(); }});
-    } else if(r.kind==='projectNext'){
-      menuItems.push({label:'查看项目详情', onClick:()=>{ ui.tab='projects'; ui.openCards['pj_'+r.refProject.id]=true; render(); }});
+    };
+    const navEl = row.querySelector('[data-navparent]');
+    if(navEl && r.kind==='projectNext'){
+      navEl.onclick = ()=>{ ui.tab='projects'; ui.openCards['pj_'+r.refProject.id]=true; render(); };
+    } else if(navEl && r.kind==='recurringStep'){
+      navEl.onclick = ()=>{ ui.tab='projects'; ui.openCards['tp_'+r.refTemplate.id]=true; render(); };
     }
-    row.querySelector('[data-rowbtns]').prepend(renderRowMenu(menuItems));
   },0);
   return row;
 }
@@ -1170,8 +1231,13 @@ function renderAdhocRow(r, movable){
           if(p){ p.steps = p.steps||[]; p.steps.push({...stepObj, repeat: rec}); moveAdhocTakeaways(inst.title, p); persist('projects'); }
         } else if(kind==='recurring'){
           const t = S.templates.find(x=>x.id===id);
-          const cyc = t ? currentCycleFor(t) : null;
-          if(cyc){ cyc.steps.push({...stepObj, date: stepObj.date||todayStr(), stepDefId:null, reminder:true}); if(t) moveAdhocTakeaways(inst.title, t); persist('cycles'); }
+          if(t){
+            S.cycles.push({ id:uid(), templateId:t.id, stepDefId:null, date: stepObj.date||todayStr(),
+              content: stepObj.content, time: stepObj.time, noTime: stepObj.noTime, reminder:true,
+              status:'todo', skipped:false, createdAt:Date.now() });
+            moveAdhocTakeaways(inst.title, t);
+            persist('cycles');
+          }
         }
         S.instances = S.instances.filter(x=>x.id!==inst.id);
         persist('instances');
@@ -1203,20 +1269,22 @@ function renderAdhocRow(r, movable){
   }
   const done = r.status==='done';
   row.className = `row ${done?'done':''}`;
-  const timeTag = r.time && !r.noTime ? `<span class="tag time">${r.time}</span>` : (r.noTime?`<span class="tag time">无固定时间</span>`:'');
-  const overdueTag = r.overdueDays? `<span class="tag overdue">已逾期${r.overdueDays}天</span>` : '';
-  const whoTag = stkLabel(r.stakeholder)? `<span class="tag who">${stkLabel(r.stakeholder)}</span>` : '';
-  const repeatTxt = inst.repeat? ` <span class="muted" style="font-size:11px;">${repeatLabel(inst.repeat)}</span>` : '';
+  const timeTxt = r.noTime ? '无固定时间' : (r.time || '—');
+  const overdueHtml = r.overdueDays? `<span class="ov">逾期${r.overdueDays}天</span>` : '';
+  const whoTxt = stkLabel(r.stakeholder) || '—';
+  const repeatTxt = inst.repeat? `🔁 ${repeatLabel(inst.repeat)}` : '';
+  const hasTakeaway = (S.takeawaysByName[inst.title]||[]).length>0;
   row.innerHTML = `
-    <div class="top">
+    <div class="rowgrid">
+      <div class="col-time">${timeTxt}${overdueHtml}</div>
+      <div class="col-who" title="${whoTxt}">${whoTxt}</div>
+      <div class="col-content">
+        <div class="title" data-clickedit="1">${r.title}</div>
+        ${repeatTxt? `<div class="subtitle" style="cursor:default;">${repeatTxt}</div>`:''}
+      </div>
       <button class="chk ${done?'done':''}" data-key="${r.key}">${done?'✓':''}</button>
-      <div class="body">
-        <div class="title" data-clickedit="1" style="cursor:text;">${r.title}${repeatTxt}</div>
-        <div class="meta">${catTagHtml(r.category)}${timeTag}${overdueTag}${whoTag}</div>
-      </div>
-      <div class="rowbtns" data-rowbtns="1">
-        ${movable? `<span class="draghandle" title="拖拽调整顺序">⠿</span>`:''}
-      </div>
+      <button class="takeawaybtn ${hasTakeaway?'has':''}" data-addtakeaway="1" title="${hasTakeaway?'已有经验记录，点击补充':'记录经验'}">💡</button>
+      ${movable? `<span class="draghandle" title="拖拽调整顺序">⠿</span>` : `<span></span>`}
     </div>
   `;
   if(movable){
@@ -1236,9 +1304,7 @@ function renderAdhocRow(r, movable){
   setTimeout(()=>{
     row.querySelector('.chk').onclick = ()=> toggleRow(r);
     row.querySelector('[data-clickedit]').onclick = ()=>{ ui.openCards[editKey]=true; render(); };
-    row.querySelector('[data-rowbtns]').prepend(renderRowMenu([
-      {label:'💡 记录经验', onClick:()=> quickAddTakeawayFor('name', inst.title, inst.title)}
-    ]));
+    row.querySelector('[data-addtakeaway]').onclick = ()=> quickAddTakeawayFor('name', inst.title, inst.title);
   },0);
   return row;
 }
@@ -1252,28 +1318,6 @@ function reorderTodayRows(fromKey, toKey){
   order.splice(toI,0,fromKey);
   S.todayOrder = {date:todayStr(), order};
   persist('todayOrder'); render();
-}
-function renderChain(cycle, template){
-  const wrap = el(`<div class="chain"></div>`);
-  cycle.steps.forEach(st=>{
-    const item = renderCheckpointItem(st, {
-      allowSkip: true,
-      onToggleDone: ()=>{ st.status = st.status==='done'?'todo':'done'; persist('cycles'); render(); },
-      onAddTakeaway: ()=> quickAddTakeawayFor('template', template, st.content, st.stepDefId),
-      takeawayList: template.takeaways,
-      takeawayStepId: st.stepDefId,
-      onSave: ({content, dtVal, skipped})=>{
-        st.content = content;
-        if(dtVal.date) st.date = dtVal.date;
-        st.time = dtVal.noTime? null : (dtVal.time||null);
-        st.noTime = !!dtVal.noTime;
-        st.skipped = skipped;
-        persist('cycles'); render();
-      }
-    });
-    wrap.appendChild(item);
-  });
-  return wrap;
 }
 function renderRowMenu(items){
   const wrap = el(`<div class="newmenu" style="position:relative;"></div>`);
@@ -1304,34 +1348,7 @@ function toggleRow(r){
     if(!r.refStep.date) r.refStep.completedDate = nowDone ? todayStr() : null;
     persist('projects');
   }
-  if(nowDone && r.kind==='projectNext') promptTakeaway(r); else render();
-}
-function promptTakeaway(r){
-  promptTakeawayGeneric(
-    (entry)=>{
-      entry.stepId = r.refStep.id||null; r.refProject.takeaways=r.refProject.takeaways||[]; r.refProject.takeaways.push(entry); persist('projects');
-    },
-    ()=>{ render(); }
-  );
-}
-function promptTakeawayGeneric(onSaveEntry, onDone){
-  const overlay = el(`<div class="overlay"></div>`);
-  overlay.innerHTML = `<div class="modal" style="max-width:420px;">
-    <h2>做完了 👍</h2>
-    <div class="field"><label>这次有什么值得记录的经验或坑？（可跳过）</label><textarea id="taText" placeholder="例如：这次因为会议室提前被占用，下次提前一天锁定"></textarea></div>
-    <div class="field"><label>标签（可选，也可以当类别用）</label><div id="taTagsWrap"></div></div>
-    <div class="btnrow"><button class="btn ghost" id="taSkip">跳过</button><button class="btn jade" id="taSave">保存经验</button></div>
-  </div>`;
-  document.body.appendChild(overlay);
-  const taTags = renderTagPicker([]);
-  overlay.querySelector('#taTagsWrap').appendChild(taTags);
-  overlay.querySelector('#taSkip').onclick = ()=>{ overlay.remove(); onDone(); };
-  overlay.querySelector('#taSave').onclick = ()=>{
-    const content = overlay.querySelector('#taText').value.trim();
-    const tags = taTags.getValue();
-    if(content) onSaveEntry({id:uid(), content, tags, createdAt:Date.now()});
-    overlay.remove(); onDone();
-  };
+  render();
 }
 async function triggerQuickAI(text){
   showToast('AI 解析中…');
@@ -1398,8 +1415,12 @@ function openQuickAddConfirm(title){
         if(p){ p.steps = p.steps||[]; p.steps.push({...stepObj, repeat: repeatVal}); persist('projects'); }
       } else if(kind==='recurring'){
         const t = S.templates.find(x=>x.id===id);
-        const cyc = t ? currentCycleFor(t) : null;
-        if(cyc){ cyc.steps.push({...stepObj, stepDefId:null, reminder:true}); persist('cycles'); }
+        if(t){
+          S.cycles.push({ id:uid(), templateId:t.id, stepDefId:null, date: stepObj.date,
+            content: stepObj.content, time: stepObj.time, noTime: stepObj.noTime, reminder:true,
+            status:'todo', skipped:false, createdAt:Date.now() });
+          persist('cycles');
+        }
       }
     } else if(projectText && createProj){
       S.projects.push({
@@ -1802,6 +1823,7 @@ function renderUnifiedProjects(){
     ...S.templates.map(t=>({kind:'recurring', createdAt:t.createdAt, ref:t}))
   ].sort((a,b)=>b.createdAt-a.createdAt);
   if(!items.length) wrap.appendChild(el(`<div class="empty"><b>这里还是空的</b>点右上角"+新建"，创建一个项目或周期事项。</div>`));
+  else wrap.appendChild(el(`<div class="libtablehead"><span></span><span>标题</span><span>需求方</span><span>事项类型</span><span></span></div>`));
   items.forEach(it=>{
     wrap.appendChild(it.kind==='project' ? renderProjectCard(it.ref) : renderRecurringCard(it.ref));
   });
@@ -1822,7 +1844,7 @@ function renderProjectCard(p){
   const card = el(`<div class="libcard ${open?'open':''}"></div>`);
   const doneCount = (p.steps||[]).filter(s=>s.status==='done').length;
   const lhHtml = editingMeta ? `
-    <div class="lh" style="flex-wrap:wrap;align-items:flex-start;cursor:default;">
+    <div class="lh" style="display:flex;flex-wrap:wrap;align-items:flex-start;cursor:default;">
       <span class="car">▸</span>
       <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:220px;">
         <input type="text" class="peName" value="${p.name.replace(/"/g,'&quot;')}" placeholder="项目名称" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);font-family:'Source Serif 4',serif;font-size:14.5px;">
@@ -1837,12 +1859,15 @@ function renderProjectCard(p){
       </div>
     </div>` : `
     <div class="lh" data-toggle="pj_${p.id}">
-      <span class="car">▸</span><h3 data-clickmeta="1" style="cursor:text;">${p.name}</h3>
+      <span class="car">▸</span>
+      <h3 data-clickmeta="1" style="cursor:text;">${p.name}</h3>
+      <span class="col-who-plain" data-clickmeta="1" style="cursor:text;">${stkLabel(p.stakeholder)||'+ 需求方'}</span>
       <span class="tag cat-project">项目制</span>
-      <span class="tag who" data-clickmeta="1" style="cursor:text;">${stkLabel(p.stakeholder)||'+ 需求方'}</span>
-      <span class="tag time" data-clickmeta="1" style="cursor:text;${p.deadline?'':'opacity:.5;'}">${p.deadline?`截止 ${p.deadline}`:'+ 截止日期'}</span>
-      ${p.status==='已结束'?'<span class="tag" style="background:var(--paper-dim);color:var(--muted);">已结束</span>':''}
-      <span class="muted mono" style="font-size:11px;">${doneCount}/${(p.steps||[]).length} 步骤</span>
+      <span style="display:flex;align-items:center;gap:6px;justify-content:flex-end;">
+        <span class="tag time" data-clickmeta="1" style="cursor:text;${p.deadline?'':'opacity:.5;'}">${p.deadline?`截止 ${p.deadline}`:'+ 截止日期'}</span>
+        ${p.status==='已结束'?'<span class="tag" style="background:var(--paper-dim);color:var(--muted);">已结束</span>':''}
+        <span class="muted mono" style="font-size:11px;">${doneCount}/${(p.steps||[]).length} 步骤</span>
+      </span>
     </div>`;
   card.innerHTML = lhHtml + `
     <div class="detail">
@@ -1892,20 +1917,13 @@ function renderProjectCard(p){
       const item = renderCheckpointItem(st, {
         allowRepeat: true,
         onToggleDone: ()=>{
-          if(st.status!=='done'){
-            st.status='done'; persist('projects');
-            promptTakeawayGeneric(
-              (entry)=>{ entry.stepId = st.id; p.takeaways=p.takeaways||[]; p.takeaways.push(entry); persist('projects'); },
-              ()=>{
-                if(st.repeat){
-                  const next = nextRepeatDate(st.repeat, st.date);
-                  if(next){ st.date = next; st.status='todo'; } // else: series exhausted, stays done
-                  persist('projects');
-                }
-                render();
-              }
-            );
-          } else { st.status='todo'; persist('projects'); render(); }
+          const nowDone = st.status!=='done';
+          st.status = nowDone?'done':'todo';
+          if(nowDone && st.repeat){
+            const next = nextRepeatDate(st.repeat, st.date);
+            if(next){ st.date = next; st.status='todo'; } // else: series exhausted, stays done
+          }
+          persist('projects'); render();
         },
         onAddTakeaway: ()=> quickAddTakeawayFor('project', p, st.content, st.id),
         takeawayList: p.takeaways,
@@ -1952,10 +1970,8 @@ function renderRecurringCard(t){
   const open = !!ui.openCards['tp_'+t.id];
   const editingMeta = !!ui.openCards['edittplmeta_'+t.id];
   const card = el(`<div class="libcard ${open?'open':''}"></div>`);
-  const rec = t.recurrence || defaultRecurrence();
-  const freqLabel = {daily:'每天循环', weekly:'每周循环', monthly:'每月循环', yearly:'每年循环'}[rec.freq] || '循环';
   const lhHtml = editingMeta ? `
-    <div class="lh" style="flex-wrap:wrap;align-items:flex-start;cursor:default;">
+    <div class="lh" style="display:flex;flex-wrap:wrap;align-items:flex-start;cursor:default;">
       <span class="car">▸</span>
       <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:220px;">
         <input type="text" class="teName" value="${t.name.replace(/"/g,'&quot;')}" placeholder="事项名称" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);font-family:'Source Serif 4',serif;font-size:14.5px;">
@@ -1967,18 +1983,18 @@ function renderRecurringCard(t){
       </div>
     </div>` : `
     <div class="lh" data-toggle="tp_${t.id}">
-      <span class="car">▸</span><h3 data-clickmeta="1" style="cursor:text;">${t.name}</h3>
-      <span class="tag cat-recurring">${freqLabel}</span>
-      <span class="tag who" data-clickmeta="1" style="cursor:text;">${stkLabel(t.stakeholder)||'+ 需求方'}</span>
-      <span class="muted mono" style="font-size:11px;">${t.steps.length} 步骤</span>
+      <span class="car">▸</span>
+      <h3 data-clickmeta="1" style="cursor:text;">${t.name}</h3>
+      <span class="col-who-plain" data-clickmeta="1" style="cursor:text;">${stkLabel(t.stakeholder)||'+ 需求方'}</span>
+      <span class="tag cat-recurring">周期性</span>
+      <span class="muted mono" style="font-size:11px;text-align:right;">${t.steps.length} 步骤</span>
     </div>`;
   card.innerHTML = lhHtml + `
     <div class="detail">
-      <div class="hint" style="margin-bottom:8px;">循环规则：${recurrenceSummary(rec)}</div>
-      <div class="hint" style="margin:12px 0 4px;">步骤定义（相对锚点日的天数偏移，负数=提前准备，正数=之后跟进）：</div>
+      <div class="hint" style="margin-bottom:8px;">步骤定义（每个步骤单独设置自己的循环规则，互不影响——可以有的按周、有的按月、有的按年）：</div>
       <div id="tpsteps_${t.id}"></div>
       <div class="btnrow" style="justify-content:flex-start;margin-top:10px;">
-        <button class="btn ghost sm" data-edittpl="${t.id}">编辑循环规则/步骤定义</button>
+        <button class="btn ghost sm" data-edittpl="${t.id}">编辑步骤定义</button>
         <button class="btn ghost sm" data-deltpl="${t.id}" style="color:var(--danger);">删除周期事项</button>
       </div>
     </div>`;
@@ -2006,9 +2022,8 @@ function renderRecurringCard(t){
     }
     const stepsEl = card.querySelector(`#tpsteps_${t.id}`);
     t.steps.forEach(st=>{
-      const off = st.offsetDays||0;
-      const offTxt = off===0 ? '锚点当天' : (off>0 ? `锚点日+${off}天` : `锚点日${off}天`);
-      const item = el(`<div class="chain-item"><div class="dot"></div><div class="stxt">${st.content}</div><div class="stime mono">${offTxt} ${st.noTime?'无固定时间':(st.time||'')}</div><button class="iconbtn" title="记录经验" style="margin-left:2px;">💡+</button></div>`);
+      const recTxt = st.repeat ? recurrenceSummary(st.repeat) : '未设置循环规则';
+      const item = el(`<div class="chain-item"><div class="dot"></div><div class="stxt">${st.content}</div><div class="stime mono">${recTxt} ${st.noTime?'无固定时间':(st.time||'')}</div><button class="iconbtn" title="记录经验" style="margin-left:2px;">💡+</button></div>`);
       item.querySelector('.iconbtn').onclick = ()=> quickAddTakeawayFor('template', t, st.content, st.id);
       const tag = stepTakeawayTag(t.takeaways, st.id);
       if(tag) item.querySelector('.stxt').appendChild(tag);
@@ -2070,14 +2085,12 @@ function openProjectForm(existing){
 function openTemplateForm(existing){
   const draft = existing
     ? JSON.parse(JSON.stringify(existing))
-    : { name:'', stakeholder:'', recurrence:defaultRecurrence(), steps:[] };
-  if(!draft.recurrence) draft.recurrence = defaultRecurrence();
+    : { name:'', stakeholder:'', steps:[] };
   renderTemplateModal(draft, existing ? existing.id : null);
 }
 function renderTemplateModal(draft, editId){
   const old = document.getElementById('tplOverlay'); if(old) old.remove();
   const overlay = el(`<div class="overlay" id="tplOverlay"></div>`);
-  const rec = draft.recurrence;
   overlay.innerHTML = `<div class="modal" style="max-width:640px;">
     <h2>${editId?'编辑周期事项':'新建周期事项'}</h2>
     <div class="inline">
@@ -2085,12 +2098,7 @@ function renderTemplateModal(draft, editId){
       <div class="field"><label>需求方</label><div id="tWhoWrap"></div></div>
     </div>
 
-    <div class="cardsplit">
-      <h3>循环周期（参考 Outlook 的"定期"设置）</h3>
-      <div id="recFieldsWrap"></div>
-    </div>
-
-    <div class="field"><label>步骤（每个步骤只需填「距锚点日几天」+ 时间；锚点日就是上面循环规则算出的那一天；正数=锚点日之后的跟进，负数=锚点日之前的准备工作，0=当天）</label><div id="stepList"></div>
+    <div class="field"><label>步骤（每个步骤单独设置自己的循环规则——同一个"周期事项"下，有的可以按周、有的按月、有的按年，互不影响）</label><div id="stepList"></div>
       <button class="btn ghost sm" id="addStepBtn" style="margin-top:6px;">+ 添加步骤</button>
     </div>
     <div class="btnrow"><button class="btn ghost" id="tCancel">取消</button><button class="btn primary" id="tSave">保存</button></div>
@@ -2103,58 +2111,59 @@ function renderTemplateModal(draft, editId){
       overlay.querySelector('#tName').value = d.title || overlay.querySelector('#tName').value;
       if(d.stakeholder) tWho.setValue([d.stakeholder]);
       if(!draft.steps.length && d.title){
-        draft.steps.push({content:d.title, offsetDays:0, time:d.noTime?null:(d.time||'09:00'), noTime:!!d.noTime, reminder:true});
+        draft.steps.push({content:d.title, time:d.noTime?null:(d.time||'09:00'), noTime:!!d.noTime, reminder:true, repeat:null});
         renderStepRows();
       }
     });
   }
-
-  const recWrap = overlay.querySelector('#recFieldsWrap');
-  recWrap.innerHTML = recurrenceFieldsHTML('rec', rec);
-  wireRecurrenceFields(recWrap, 'rec', rec, null);
 
   function renderStepRows(){
     const listEl = overlay.querySelector('#stepList'); listEl.innerHTML='';
     draft.steps.forEach((st,i)=>{
       const row = el(`<div class="cardsplit" style="padding:10px;margin-bottom:8px;"></div>`);
       row.innerHTML = `
-        <div class="field"><label>步骤内容</label><input type="text" value="${st.content||''}" data-f="content" data-i="${i}" placeholder="例如：确认会议室设备与投屏..."></div>
+        <div class="field"><label>步骤内容</label><input type="text" value="${(st.content||'').replace(/"/g,'&quot;')}" data-f="content" data-i="${i}" placeholder="例如：确认会议室设备与投屏..."></div>
         <div class="inline">
-          <div class="field"><label>距锚点日天数（可负数，如 -2）</label><input type="number" min="-60" max="60" value="${st.offsetDays||0}" data-f="offsetDays" data-i="${i}"></div>
           <div class="field"><label>时间</label><input type="time" value="${st.time||''}" data-f="time" data-i="${i}" ${st.noTime?'disabled':''}></div>
+          <div class="field"><label>循环规则（必选，参考 Outlook 的"定期"设置）</label><div id="stepRecWrap_${i}"></div></div>
         </div>
         <div class="checkline"><label><input type="checkbox" data-f="noTime" data-i="${i}" ${st.noTime?'checked':''}> 无固定时间</label>
         <label style="margin-left:10px;"><input type="checkbox" data-f="reminder" data-i="${i}" ${st.reminder!==false?'checked':''}> 需要提醒</label>
         <button class="btn ghost sm" style="margin-left:auto;" data-delstep="${i}">删除步骤</button></div>
       `;
       listEl.appendChild(row);
+      const recPicker = renderRecurrencePicker(st.repeat||null, (rec)=>{ draft.steps[i].repeat = rec; }, true);
+      row.querySelector(`#stepRecWrap_${i}`).appendChild(recPicker);
     });
     listEl.querySelectorAll('[data-f]').forEach(inp=>{
       inp.onchange = ()=>{
         const i = +inp.dataset.i, f = inp.dataset.f;
         let val = inp.type==='checkbox'? inp.checked : inp.value;
-        if(f==='offsetDays') val = Number(val);
         draft.steps[i][f]=val;
         if(f==='noTime') renderStepRows();
       };
     });
     listEl.querySelectorAll('[data-delstep]').forEach(b=>{ b.onclick=()=>{ draft.steps.splice(+b.dataset.delstep,1); renderStepRows(); }; });
   }
-  overlay.querySelector('#addStepBtn').onclick = ()=>{ draft.steps.push({content:'', offsetDays:0, time:'09:00', noTime:false, reminder:true}); renderStepRows(); };
+  overlay.querySelector('#addStepBtn').onclick = ()=>{ draft.steps.push({content:'', time:'09:00', noTime:false, reminder:true, repeat:null}); renderStepRows(); };
   renderStepRows();
   overlay.querySelector('#tCancel').onclick = ()=>overlay.remove();
   overlay.querySelector('#tSave').onclick = ()=>{
     const name = overlay.querySelector('#tName').value.trim();
     if(!name || !draft.steps.length){ alert('请填写事项名称并至少添加一个步骤'); return; }
-    if(rec.freq==='weekly' && !rec.weekdays.length){ alert('请至少勾选一个星期'); return; }
+    const missing = draft.steps.findIndex(s=>!s.repeat);
+    if(missing!==-1){ alert(`第 ${missing+1} 个步骤还没设置循环规则，每个步骤都需要设置。`); return; }
+    for(const s of draft.steps){
+      if(s.repeat.freq==='weekly' && !s.repeat.weekdays.length){ alert(`步骤「${s.content||'(未命名)'}」按周循环但没有勾选任何星期，请检查。`); return; }
+    }
     const stakeholder = tWho.getValue();
     if(editId){
       const t = S.templates.find(x=>x.id===editId);
-      t.name=name; t.stakeholder=stakeholder; t.recurrence=rec;
-      t.steps = draft.steps.map(s=>({id:s.id||uid(), ...s}));
+      t.name=name; t.stakeholder=stakeholder;
+      t.steps = draft.steps.map(s=>({id:s.id||uid(), content:s.content, time:s.time, noTime:s.noTime, reminder:s.reminder, repeat:s.repeat}));
     } else {
-      S.templates.push({ id:uid(), name, stakeholder, recurrence:rec,
-        steps: draft.steps.map(s=>({id:uid(), ...s})), takeaways:[], createdAt:Date.now() });
+      S.templates.push({ id:uid(), name, stakeholder,
+        steps: draft.steps.map(s=>({id:uid(), content:s.content, time:s.time, noTime:s.noTime, reminder:s.reminder, repeat:s.repeat})), takeaways:[], createdAt:Date.now() });
     }
     persist('templates'); overlay.remove(); ui.tab='projects'; render();
   };
@@ -2630,9 +2639,11 @@ function renderConfirmModal(){
           }
         } else if(kind==='recurring'){
           const t = S.templates.find(x=>x.id===id);
-          const cyc = t ? currentCycleFor(t) : null;
-          if(cyc){
-            cyc.steps.push({...stepObj, stepDefId:null, reminder:true, date: stepObj.date||todayStr()});
+          if(t){
+            const cDate = stepObj.date||todayStr();
+            S.cycles.push({ id:uid(), templateId:t.id, stepDefId:null, date:cDate,
+              content: stepObj.content, time: stepObj.time, noTime: stepObj.noTime, reminder:true,
+              status:'todo', skipped:false, createdAt:Date.now() });
             if(expContent){ t.takeaways=t.takeaways||[]; t.takeaways.push(makeEntry(stepObj.id)); }
           }
         }
