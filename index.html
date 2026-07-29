@@ -97,7 +97,12 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
 .chain-item:not(:last-child)::before{content:'';position:absolute;left:4px;top:16px;width:1.4px;height:calc(100% - 4px);background:var(--line);}
 .chain-item .stxt{font-size:13px;line-height:1.4;flex:1;}
 .chain-item.sdone .stxt{color:var(--muted);text-decoration:line-through;}
-.chain-item .stime{font-size:10.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+.chain-item .stime{font-size:10.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;white-space:nowrap;display:grid;grid-template-columns:52px 96px 42px 38px 100px;gap:6px;align-items:center;}
+.chain-item .stime .col-skip{text-align:left;}
+.chain-item .stime .col-rec{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;}
+.chain-item .stime .col-date{text-align:right;flex:0 0 auto;}
+.chain-item .stime .col-time{text-align:right;flex:0 0 auto;}
+.chain-item .stime .col-takeaway{text-align:right;}
 
 .takeaway-toggle{margin-top:9px;font-size:11.5px;color:var(--jade);background:var(--jade-soft);display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;border:none;}
 .takeaway-list{margin-top:8px;padding:9px 10px;background:var(--paper-dim);border-radius:7px;font-size:12.5px;}
@@ -134,8 +139,8 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
 .toast{position:fixed;bottom:96px;right:26px;background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;font-size:13px;z-index:200;box-shadow:var(--shadow);max-width:300px;}
 
 .libcard{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);}
-.libcard .lh{display:grid;grid-template-columns:18px 1fr 150px 88px 130px 76px;align-items:center;gap:10px;cursor:pointer;}
-.libcard .lh.talh{grid-template-columns:18px 1fr 100px 90px 100px;}
+.libcard .lh{display:grid;grid-template-columns:18px 64px 130px 1fr 76px;align-items:center;gap:6px;cursor:pointer;}
+.libcard .lh.talh{grid-template-columns:18px 1fr 100px 90px;}
 .col-deadline{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden;white-space:nowrap;}
 .talh .tag, .talh button{justify-self:end;}
 .talh .muted{justify-self:end;}
@@ -143,7 +148,7 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
 .libcard .lh .car{transition:.15s;color:var(--muted);}
 .libcard.open .lh .car{transform:rotate(90deg);}
 .libtablehead{display:grid;grid-template-columns:18px 1fr 150px 88px 130px 76px;gap:10px;padding:0 16px 6px;}
-.libtablehead.talh{grid-template-columns:18px 1fr 100px 90px 100px;}
+.libtablehead.talh{grid-template-columns:18px 1fr 100px 90px;}
 .libtablehead span{font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:.3px;text-transform:uppercase;}
 .col-who-plain{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .libcard .detail{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);}
@@ -186,6 +191,12 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
 .row[draggable=true]{cursor:grab;}
 .row.dragging{opacity:.4;}
 .row.dragover{border-color:var(--ink-soft);box-shadow:0 0 0 2px var(--ink-soft) inset;}
+.libcard.dragging{opacity:.4;}
+.libcard.dragover{border-color:var(--ink-soft);box-shadow:0 0 0 2px var(--ink-soft) inset;}
+.libcard{cursor:grab;}
+.chain-item{cursor:grab;}
+.stepdrag.dragging{opacity:.4;}
+.stepdrag.dragover{background:var(--paper-dim);box-shadow:0 0 0 1.6px var(--ink-soft) inset;border-radius:6px;}
 .draghandle{color:var(--muted);font-size:16px;letter-spacing:-2px;padding:2px 4px;cursor:grab;user-select:none;}
 
 .weeknav{display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap;}
@@ -218,10 +229,10 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
   .weekstrip{overflow-x:auto;width:100%;}
   .rowgrid{grid-template-columns:52px 68px 1fr 28px 28px 16px;gap:6px;}
   .tablehead{grid-template-columns:52px 68px 1fr 28px 28px 16px;gap:6px;}
-  .libcard .lh{grid-template-columns:16px 1fr 76px 70px 90px 60px;gap:6px;}
+  .libcard .lh{grid-template-columns:16px 56px 90px 1fr 60px;gap:5px;}
   .libtablehead{grid-template-columns:16px 1fr 76px 70px 90px 60px;gap:6px;}
-  .libcard .lh.talh{grid-template-columns:16px 1fr 70px 60px 60px;}
-  .libtablehead.talh{grid-template-columns:16px 1fr 70px 60px 60px;}
+  .libcard .lh.talh{grid-template-columns:16px 1fr 70px 60px;}
+  .libtablehead.talh{grid-template-columns:16px 1fr 70px 60px;}
 }
 </style>
 </head>
@@ -449,10 +460,11 @@ let S = {
   dropdowns:{stakeholders:[], eventNames:[]},
   takeawaysByName:{},
   freeTakeaways:[],
+  libOrder:[],
   todayOrder:{date:null, order:[]},
   raw:[]
 };
-let ui = { tab:'today', openCards:{}, whoFilter:'', pendingCards:[], newMenuOpen:false, taTagFilter:'', taSearch:'', taView:'source', weekOffset:0, todayView:'classic' };
+let ui = { tab:'today', openCards:{}, whoFilter:'', pendingCards:[], newMenuOpen:false, taTagFilter:'', taSearch:'', taView:'source', weekOffset:0, todayView:'classic', libSearch:'' };
 
 async function loadAll(){
   S.templates = await loadKey('templates', []);
@@ -462,6 +474,7 @@ async function loadAll(){
   S.dropdowns = await loadKey('dropdowns', {stakeholders:[], eventNames:[]});
   S.takeawaysByName = await loadKey('takeawaysByName', {});
   S.freeTakeaways = await loadKey('freeTakeaways', []);
+  S.libOrder = await loadKey('libOrder', []);
   S.todayOrder = await loadKey('todayOrder', {date:null, order:[]});
   S.raw = await loadKey('raw', []);
   if(S.todayOrder.date !== todayStr()) S.todayOrder = {date:todayStr(), order:[]};
@@ -532,7 +545,7 @@ function migrateCyclesToFlatSteps(){
   return changed;
 }
 async function persist(part){
-  const keys = ['templates','projects','instances','cycles','dropdowns','takeawaysByName','freeTakeaways','todayOrder','raw'];
+  const keys = ['templates','projects','instances','cycles','dropdowns','takeawaysByName','freeTakeaways','libOrder','todayOrder','raw'];
   if(part){ await saveKey(part, S[part]); }
   else{ for(const k of keys) await saveKey(k, S[k]); }
 }
@@ -629,13 +642,7 @@ function recurrenceSummary(rec){
   } else if(rec.freq==='yearly'){
     core = (iv===1?'每年':`每${iv}年`) + ` ${rec.yearMonth}月` + (rec.yearlyMode==='date'? `${rec.yearDay}号` : `第${rec.nthN===-1?'最后一':rec.nthN}周${WEEKDAY_NAMES_FULL[rec.nthWeekday]}`);
   }
-  let rangeTxt = `，从 ${rec.rangeStart} 开始`;
-  if(rec.rangeEnd){
-    if(rec.rangeEnd.type==='until' && rec.rangeEnd.until) rangeTxt += `，到 ${rec.rangeEnd.until} 结束`;
-    else if(rec.rangeEnd.type==='count' && rec.rangeEnd.count) rangeTxt += `，重复 ${rec.rangeEnd.count} 次后结束`;
-    else rangeTxt += '，无结束日期';
-  }
-  return core + rangeTxt;
+  return core; // range (start/end date) intentionally omitted from display — just the rule itself
 }
 
 /* ---- shared recurrence field UI, reusable anywhere a recurrence needs configuring ---- */
@@ -777,7 +784,7 @@ function renderDateTimePicker(initial, onChange){
     if(!val.date && !val.noTime) sumEl.textContent = '未设置日期/时间（点击设置）';
     else {
       let s = val.date || '未定日期';
-      s += val.noTime ? ' · 无固定时间' : (val.time? ` · ${val.time}` : '');
+      s += val.noTime ? ' · /' : (val.time? ` · ${val.time}` : '');
       sumEl.textContent = s;
     }
   }
@@ -1112,10 +1119,6 @@ function tableHeaderHtml(simple){
   if(simple) return `<div class="tablehead simple"><span>时间</span><span>事项</span><span></span><span></span></div>`;
   return `<div class="tablehead"><span>时间</span><span>需求方</span><span>事项内容</span><span>状态</span><span>经验</span><span></span></div>`;
 }
-function catTagHtml(cat){
-  const map = {recurring:['周期','cat-recurring'], adhoc:['日常','cat-adhoc'], project:['项目','cat-project']};
-  const [label,cls] = map[cat]; return `<span class="tag ${cls}">${label}</span>`;
-}
 function renderRow(r, movable, idx, total, simple){
   if(r.kind==='recurringStep' || r.kind==='projectNext'){
     return renderCheckpointRow(r, movable, simple);
@@ -1171,7 +1174,7 @@ function renderCheckpointRow(r, movable, simple){
   }
   const done = r.status==='done';
   const row = el(`<div class="row ${done?'done':''}"></div>`);
-  const timeTxt = r.noTime ? '无固定时间' : (r.time || '—');
+  const timeTxt = r.noTime ? '/' : (r.time || '—');
   if(simple){
     row.innerHTML = `
       <div class="rowgrid simple">
@@ -1303,7 +1306,7 @@ function renderAdhocRow(r, movable, simple){
       } else if(projectText && createProjChk.checked){
         const rec = recPicker.getRec();
         const newProj = {
-          id:uid(), name:projectText, stakeholder:whoInp.getValue(), deadline:dtVal.date||null, status:'进行中', createdAt:Date.now(),
+          id:uid(), name:projectText, stakeholder:whoInp.getValue(), status:'进行中', createdAt:Date.now(),
           steps:[{id:uid(), content:title, date: dtVal.date || (rec ? firstOccurrenceDate(rec) : null), time:dtVal.noTime?null:(dtVal.time||null), noTime:!!dtVal.noTime, status:'todo', repeat:rec}],
           takeaways:[]
         };
@@ -1328,7 +1331,7 @@ function renderAdhocRow(r, movable, simple){
   }
   const done = r.status==='done';
   row.className = `row ${done?'done':''}`;
-  const timeTxt = r.noTime ? '无固定时间' : (r.time || '—');
+  const timeTxt = r.noTime ? '/' : (r.time || '—');
   if(simple){
     row.innerHTML = `
       <div class="rowgrid simple">
@@ -1384,6 +1387,26 @@ function renderAdhocRow(r, movable, simple){
   return row;
 }
 let dragState = { key:null };
+// Reusable drag-to-reorder for a list of steps living in `stepsArr` (mutated in place via
+// splice, then persisted). `key` must be unique per step within this list.
+function wireStepDrag(item, stepsArr, key, persistKey){
+  item.classList.add('stepdrag');
+  item.draggable = true;
+  item.addEventListener('dragstart', (e)=>{ dragState.key = key; item.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', key); }catch(_){} });
+  item.addEventListener('dragend', ()=>{ item.classList.remove('dragging'); dragState.key=null; });
+  item.addEventListener('dragover', (e)=>{ e.preventDefault(); item.classList.add('dragover'); });
+  item.addEventListener('dragleave', ()=>{ item.classList.remove('dragover'); });
+  item.addEventListener('drop', (e)=>{
+    e.preventDefault(); item.classList.remove('dragover');
+    const fromKey = dragState.key;
+    if(!fromKey || fromKey===key) return;
+    const fromI = stepsArr.findIndex(s=>s.id===fromKey), toI = stepsArr.findIndex(s=>s.id===key);
+    if(fromI<0 || toI<0) return;
+    const [moved] = stepsArr.splice(fromI,1);
+    stepsArr.splice(toI,0,moved);
+    persist(persistKey); render();
+  });
+}
 function reorderTodayRows(fromKey, toKey){
   const rows = sortRows(applyWhoFilter(buildRowsForDate(todayStr())), true);
   let order = rows.map(r=>r.key);
@@ -1394,18 +1417,6 @@ function reorderTodayRows(fromKey, toKey){
   S.todayOrder = {date:todayStr(), order};
   persist('todayOrder'); render();
 }
-function renderRowMenu(items){
-  const wrap = el(`<div class="newmenu" style="position:relative;"></div>`);
-  wrap.innerHTML = `<button class="iconbtn rowmenu-btn" title="更多">⋯</button><div class="popover" style="display:none;right:0;"></div>`;
-  const btn = wrap.querySelector('button');
-  const pop = wrap.querySelector('.popover');
-  pop.innerHTML = items.map((it,i)=>`<button data-idx="${i}">${it.label}</button>`).join('');
-  btn.onclick = (e)=>{ e.stopPropagation(); document.querySelectorAll('.popover').forEach(p=>{ if(p!==pop) p.style.display='none'; }); pop.style.display = pop.style.display==='none'?'block':'none'; };
-  pop.querySelectorAll('[data-idx]').forEach((b,i)=>{ b.onclick=(e)=>{ e.stopPropagation(); pop.style.display='none'; items[i].onClick(); }; });
-  document.addEventListener('click', ()=>{ pop.style.display='none'; });
-  return wrap;
-}
-
 function toggleRow(r){
   const nowDone = r.status!=='done';
   if(r.kind==='recurringStep'){ r.refStep.status = nowDone?'done':'todo'; persist('cycles'); }
@@ -1499,7 +1510,7 @@ function openQuickAddConfirm(title){
       }
     } else if(projectText && createProj){
       S.projects.push({
-        id:uid(), name:projectText, stakeholder, deadline:dtVal.date||null, status:'进行中', createdAt:Date.now(),
+        id:uid(), name:projectText, stakeholder, status:'进行中', createdAt:Date.now(),
         steps:[{id:uid(), content:finalTitle, date: dtVal.date || (repeatVal ? firstOccurrenceDate(repeatVal) : null), time:dtVal.noTime?null:(dtVal.time||null), noTime:!!dtVal.noTime, status:'todo', repeat:repeatVal}],
         takeaways:[]
       });
@@ -1553,8 +1564,14 @@ function renderCheckpointItem(st, opts){
   if(!editing){
     item.innerHTML = `
       <div class="dot ${st.status==='done'?'done':''}"></div>
-      <div class="stxt" data-clickedit="1" style="cursor:text;">${st.content}${st.repeat?` <span class="muted" style="font-size:11px;">${repeatLabel(st.repeat)}</span>`:''}${st.skipped?' <span class="tag overdue">已跳过</span>':''}</div>
-      <div class="stime mono">${st.date? st.date.slice(5):''} ${st.time||''}</div>
+      <div class="stxt" data-clickedit="1" style="cursor:text;">${st.content}</div>
+      <div class="stime mono">
+        <span class="col-skip">${st.skipped?'<span class="tag overdue">已跳过</span>':''}</span>
+        <span class="col-rec">${st.repeat?repeatLabel(st.repeat):''}</span>
+        <span class="col-date">${(st.date && !st.repeat)? st.date.slice(5):''}</span>
+        <span class="col-time">${st.noTime?'':(st.time||'')}</span>
+        <span class="col-takeaway"></span>
+      </div>
       <button class="iconbtn" title="记录经验" style="margin-left:2px;">💡+</button>
     `;
     item.querySelector('.dot').onclick = opts.onToggleDone;
@@ -1562,8 +1579,8 @@ function renderCheckpointItem(st, opts){
     item.querySelector('.iconbtn').onclick = opts.onAddTakeaway;
     if(opts.takeawayList){
       const tag = stepTakeawayTag(opts.takeawayList, opts.takeawayStepId);
-      if(tag) item.querySelector('.stxt').appendChild(tag);
-      const expanded = stepTakeawayExpanded(opts.takeawayList, opts.takeawayStepId);
+      if(tag) item.querySelector('.col-takeaway').appendChild(tag);
+      const expanded = stepTakeawayExpanded(opts.takeawayList, opts.takeawayStepId, opts.persistKey);
       if(expanded) outer.appendChild(expanded);
     }
   } else {
@@ -1612,6 +1629,77 @@ function renderCheckpointItem(st, opts){
   }
   return outer;
 }
+// Periodic-template step definitions: no date field (occurrences are generated from the
+// recurrence rule), but otherwise supports the same click-to-edit / delete interaction as
+// project steps.
+function renderTemplateStepItem(t, st, opts){
+  const editKey = 'edittplstep_' + st.id;
+  const editing = !!ui.openCards[editKey];
+  const outer = el(`<div></div>`);
+  const item = el(`<div class="chain-item"></div>`);
+  outer.appendChild(item);
+  if(!editing){
+    const recBadge = st.repeat ? `<span class="col-rec">${repeatLabel(st.repeat)}</span>` : `<span class="col-rec"><span class="tag overdue">未设置循环规则</span></span>`;
+    item.innerHTML = `
+      <div class="dot"></div>
+      <div class="stxt" data-clickedit="1" style="cursor:text;">${st.content}</div>
+      <div class="stime mono">
+        <span class="col-skip"></span>
+        ${recBadge}
+        <span class="col-date"></span>
+        <span class="col-time">${st.noTime?'':(st.time||'')}</span>
+        <span class="col-takeaway"></span>
+      </div>
+      <button class="iconbtn" title="记录经验" style="margin-left:2px;">💡+</button>
+    `;
+    item.querySelector('[data-clickedit]').onclick = ()=>{ ui.openCards[editKey]=true; render(); };
+    item.querySelector('.iconbtn').onclick = opts.onAddTakeaway;
+    if(opts.takeawayList){
+      const tag = stepTakeawayTag(opts.takeawayList, opts.takeawayStepId);
+      if(tag) item.querySelector('.col-takeaway').appendChild(tag);
+      const expanded = stepTakeawayExpanded(opts.takeawayList, opts.takeawayStepId, opts.persistKey);
+      if(expanded) outer.appendChild(expanded);
+    }
+  } else {
+    item.style.flexDirection = 'column';
+    item.style.alignItems = 'stretch';
+    item.style.padding = '8px 0';
+    const contentInp = el(`<input type="text" value="${(st.content||'').replace(/"/g,'&quot;')}" style="padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);width:100%;">`);
+    item.appendChild(contentInp);
+    const timeRow = el(`<div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:nowrap;"></div>`);
+    const timeInp = el(`<input type="time" value="${st.time||'09:00'}" ${st.noTime?'disabled':''} style="padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--card);">`);
+    const noTimeLabel = el(`<label style="font-size:11px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;"><input type="checkbox" ${st.noTime?'checked':''}> 无固定时间</label>`);
+    timeRow.appendChild(timeInp); timeRow.appendChild(noTimeLabel);
+    item.appendChild(timeRow);
+    const noTimeChk = noTimeLabel.querySelector('input');
+    noTimeChk.onchange = ()=>{ timeInp.disabled = noTimeChk.checked; };
+    const recWrap = el(`<div style="margin-top:6px;"></div>`);
+    item.appendChild(recWrap);
+    const recPicker = renderRecurrencePicker(st.repeat||null, ()=>{}, true);
+    recWrap.appendChild(recPicker);
+    const btnRow = el(`<div class="btnrow" style="margin-top:8px;justify-content:flex-start;">
+      <button class="btn ghost sm" data-cancel>取消</button>
+      <button class="btn ghost sm" data-del style="color:var(--danger);">删除</button>
+      <button class="btn primary sm" data-save style="margin-left:auto;">保存</button>
+    </div>`);
+    item.appendChild(btnRow);
+    btnRow.querySelector('[data-cancel]').onclick = ()=>{ ui.openCards[editKey]=false; render(); };
+    btnRow.querySelector('[data-del]').onclick = ()=>{
+      if(confirm('确定删除这个步骤吗？')){ ui.openCards[editKey]=false; opts.onDelete(); }
+    };
+    btnRow.querySelector('[data-save]').onclick = ()=>{
+      const content = contentInp.value.trim();
+      if(!content){ alert('内容不能为空'); return; }
+      const rec = recPicker.getRec();
+      if(!rec){ alert('请先设置这个步骤的循环规则'); return; }
+      if(rec.freq==='weekly' && !rec.weekdays.length){ alert('按周循环需要至少勾选一个星期'); return; }
+      ui.openCards[editKey] = false;
+      opts.onSave({content, time: noTimeChk.checked?null:(timeInp.value||'09:00'), noTime:noTimeChk.checked, repeat:rec});
+    };
+    setTimeout(()=>contentInp.focus(),0);
+  }
+  return outer;
+}
 
 function stepTakeawayTag(list, stepId){
   const filtered = (list||[]).filter(e=>e.stepId && e.stepId===stepId);
@@ -1621,12 +1709,45 @@ function stepTakeawayTag(list, stepId){
   btn.onclick = (e)=>{ e.stopPropagation(); ui.openCards[key] = !ui.openCards[key]; render(); };
   return btn;
 }
-function stepTakeawayExpanded(list, stepId){
+function stepTakeawayExpanded(list, stepId, persistKey){
   const filtered = (list||[]).filter(e=>e.stepId && e.stepId===stepId);
   const key = 'ta_step_'+stepId;
   if(!filtered.length || !ui.openCards[key]) return null;
   const wrap = el(`<div class="takeaway-list" style="margin:6px 0 8px 0;"></div>`);
-  wrap.innerHTML = filtered.map(e=>`<div class="ta-item">${e.content}${e.tags&&e.tags.length?`<div class="ta-tags">${e.tags.map(t=>`<span>${t}</span>`).join('')}</div>`:''}</div>`).join('');
+  function paint(){
+    wrap.innerHTML = '';
+    filtered.forEach(e=>{
+      const item = el(`<div class="ta-item"></div>`);
+      function paintItem(){
+        item.innerHTML = `<div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="flex:1;cursor:text;" data-editentry="1">${e.content}</span>
+            <button class="btn ghost sm" data-edittakeaway="1" style="flex:0 0 auto;">编辑</button>
+          </div>
+          ${e.tags&&e.tags.length?`<div class="ta-tags">${e.tags.map(t=>`<span>${t}</span>`).join('')}</div>`:''}`;
+        const openEdit = ()=>{
+          item.innerHTML = `<div class="field"><textarea data-etext style="min-height:50px;">${e.content}</textarea></div>
+            <div class="field"><label style="font-size:11px;">标签</label><div data-etagswrap></div></div>
+            <div class="btnrow" style="margin-top:6px;"><button class="btn ghost sm" data-ecancel>取消</button><button class="btn primary sm" data-esave>保存</button></div>`;
+          const eTags = renderTagPicker(e.tags||[]);
+          item.querySelector('[data-etagswrap]').appendChild(eTags);
+          item.querySelector('[data-ecancel]').onclick = (ev)=>{ ev.stopPropagation(); paintItem(); };
+          item.querySelector('[data-esave]').onclick = (ev)=>{
+            ev.stopPropagation();
+            const newContent = item.querySelector('[data-etext]').value.trim();
+            if(!newContent){ alert('内容不能为空'); return; }
+            e.content = newContent; e.tags = eTags.getValue();
+            if(persistKey) persist(persistKey);
+            paintItem();
+          };
+        };
+        item.querySelector('[data-edittakeaway]').onclick = (ev)=>{ ev.stopPropagation(); openEdit(); };
+        item.querySelector('[data-editentry]').onclick = (ev)=>{ ev.stopPropagation(); openEdit(); };
+      }
+      paintItem();
+      wrap.appendChild(item);
+    });
+  }
+  paint();
   return wrap;
 }
 function nextRepeatDate(rec, fromDateStr){
@@ -1650,17 +1771,6 @@ function repeatLabel(rec){
   if(!rec) return '';
   return '🔁 '+recurrenceSummary(rec);
 }
-function takeawayBlock(kind, keyOrName, list){
-  const wrap = el(`<div></div>`);
-  const id = 'ta_'+kind+'_'+String(keyOrName).replace(/\s/g,'_');
-  wrap.innerHTML = `<button class="takeaway-toggle" data-tatoggle="1">💡 历史经验（${list.length}）</button>
-    <div class="takeaway-list" id="${id}" style="display:${ui.openCards[id]?'block':'none'};">
-      ${list.length? list.map(e=>`<div class="ta-item">${e.content}${e.tags&&e.tags.length?`<div class="ta-tags">${e.tags.map(t=>`<span>${t}</span>`).join('')}</div>`:''}</div>`).join('') : '<span class="muted">暂无记录</span>'}
-    </div>`;
-  setTimeout(()=>{ wrap.querySelector('[data-tatoggle]').onclick = ()=>{ ui.openCards[id]=!ui.openCards[id]; render(); }; },0);
-  return wrap;
-}
-
 /* ============ 经验 (aggregated takeaways) tab ============ */
 // Multi-select 标签 input — same chip UI as the stakeholder picker, but suggests from
 // all tags ever used across takeaway entries, and supports true append (not replace).
@@ -1806,7 +1916,6 @@ function renderTakeawaysTab(){
       groupsContainer.appendChild(el(`<div class="empty"><b>没有匹配的经验记录</b>完成任务时会提示记录，或者随时点检查点旁的 💡+ 按钮记一条，也可以点右上角"+ 新增经验"单独记一笔。</div>`));
       return;
     }
-    groupsContainer.appendChild(el(`<div class="libtablehead talh"><span></span><span>${view==='tag'?'标签':'事项'}</span><span>${view==='tag'?'':'类型'}</span><span>数量</span><span></span></div>`));
     const groups = {};
     if(view==='tag'){
       // Flattened: grouped purely by tag, spanning every source. An entry with multiple tags
@@ -1821,28 +1930,49 @@ function renderTakeawaysTab(){
         });
       });
     } else {
-      // Grouped by where the entry actually lives: each project, each recurring template,
-      // one bucket for all 按需事项 entries, one bucket for 自由记录.
+      // Two big buckets: everything project-type stays split out per project (so you can
+      // still browse "which project" individually); everything else (periodic templates,
+      // ad-hoc items, free-standing notes) merges into one shared non-project archive —
+      // per-entry source badges still show where each one actually came from.
       filtered.forEach(e=>{
-        const key = e.sourceKind+':'+e.sourceId;
-        if(!groups[key]) groups[key] = { label:e.source, kind:'source', sourceKind:e.sourceKind, sourceId:e.sourceId, navKind:e.navKind, entries:[] };
-        groups[key].entries.push(e);
+        if(e.sourceKind==='项目'){
+          const key = e.sourceKind+':'+e.sourceId;
+          if(!groups[key]) groups[key] = { label:e.source, kind:'source', sourceKind:e.sourceKind, sourceId:e.sourceId, navKind:e.navKind, entries:[] };
+          groups[key].entries.push(e);
+        } else {
+          const key = 'nonproject';
+          if(!groups[key]) groups[key] = { label:'非项目制的事项经验归档', kind:'nonproject', entries:[] };
+          groups[key].entries.push(e);
+        }
       });
     }
-    const groupList = Object.values(groups).sort((a,b)=> b.entries[0].createdAt - a.entries[0].createdAt);
+    let groupList;
+    if(view==='source'){
+      const nonproject = groups['nonproject'] ? [groups['nonproject']] : [];
+      const projectGroups = Object.values(groups).filter(g=>g.kind==='source').sort((a,b)=> b.entries[0].createdAt - a.entries[0].createdAt);
+      groupList = [...nonproject, ...(projectGroups.length? [{label:'项目制的事项经验归档', kind:'sectionlabel'}] : []), ...projectGroups];
+    } else {
+      groupList = Object.values(groups).sort((a,b)=> b.entries[0].createdAt - a.entries[0].createdAt);
+    }
     groupList.forEach(g=>{
+      if(g.kind==='sectionlabel'){
+        groupsContainer.appendChild(el(`<div class="muted" style="font-size:12px;font-weight:600;margin:14px 2px 4px;letter-spacing:.2px;">${g.label}</div>`));
+        return;
+      }
       const openKey = 'ta_'+view+'_'+g.label;
       const open = !!ui.openCards[openKey];
       const sourceCls = g.sourceKind==='周期事项'?'cat-recurring':(g.sourceKind==='项目'?'cat-project':'cat-adhoc');
+      const canNav = g.kind==='source' && g.navKind!=='name' && g.navKind!=='free';
       const card = el(`<div class="libcard ${open?'open':''}"></div>`);
       card.innerHTML = `
         <div class="lh talh">
           <span class="car">▸</span><h3>${g.label}</h3>
           ${g.kind==='source'? `<span class="tag ${sourceCls}">${g.sourceKind}</span>` : `<span></span>`}
-          <span class="muted mono" style="font-size:11px;">${g.entries.length} 条经验</span>
-          ${(g.kind==='source' && g.navKind!=='name' && g.navKind!=='free')? `<button class="btn ghost sm" data-navto="1">查看事项</button>` : `<span></span>`}
+          <span class="muted mono" style="font-size:11px;text-align:right;">${g.entries.length} 条经验</span>
         </div>
-        <div class="detail"></div>
+        <div class="detail">
+          ${canNav? `<button class="btn ghost sm" data-navto="1" style="margin-bottom:8px;">查看${g.sourceKind} →</button>`:''}
+        </div>
       `;
       const detail = card.querySelector('.detail');
       g.entries.forEach(e=>{
@@ -1855,9 +1985,9 @@ function renderTakeawaysTab(){
               <button class="btn ghost sm" data-deltakeaway="1" style="color:var(--danger);flex:0 0 auto;">删除</button>
             </div>
             <div class="meta" style="margin-top:4px;">
-              ${g.kind==='tag'? `<span class="tag ${entrySourceCls}" style="font-size:10.5px;">${e.source}</span>` : ''}
+              ${(g.kind==='tag'||g.kind==='nonproject')? `<span class="tag ${entrySourceCls}" style="font-size:10.5px;">${e.source}</span>` : ''}
               ${e.stepLabel && e.stepLabel!==e.source? `<span class="tag time">${e.stepLabel}</span>`:''}
-              ${g.kind==='source'? (e.tags||[]).map(t=>`<span class="tag" style="background:var(--jade-soft);color:var(--jade);">${t}</span>`).join('') : ''}
+              ${(g.kind==='source'||g.kind==='nonproject')? (e.tags||[]).map(t=>`<span class="tag" style="background:var(--jade-soft);color:var(--jade);">${t}</span>`).join('') : ''}
               <span class="muted mono" style="font-size:10px;margin-left:auto;">${new Date(e.createdAt).toLocaleDateString('zh-CN')}</span>
             </div>`;
           const openEdit = ()=>{
@@ -1886,8 +2016,7 @@ function renderTakeawaysTab(){
         paintView();
         detail.appendChild(item);
       });
-      card.querySelector('.lh').onclick = (e)=>{
-        if(e.target.closest('[data-navto]')) return;
+      card.querySelector('.lh').onclick = ()=>{
         ui.openCards[openKey] = !ui.openCards[openKey];
         card.classList.toggle('open', ui.openCards[openKey]);
       };
@@ -1921,6 +2050,7 @@ function renderUnifiedProjects(){
   const wrap = el(`<div></div>`);
   wrap.innerHTML = `<div class="filterbar">
       <span class="daypill">项目制与周期性事项统一管理</span>
+      <input type="text" id="libSearchInput" placeholder="搜索项目/周期事项名称..." value="${(ui.libSearch||'').replace(/"/g,'&quot;')}" style="flex:1;max-width:260px;padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
       <div class="newmenu" style="margin-left:auto;">
         <button class="btn primary sm" id="newLibBtn">+ 新建</button>
         <div class="popover" id="newLibPop" style="display:none;">
@@ -1928,16 +2058,71 @@ function renderUnifiedProjects(){
           <button data-choice="recurring">新建周期事项</button>
         </div>
       </div>
-    </div>`;
-  const items = [
-    ...S.projects.map(p=>({kind:'project', createdAt:p.createdAt, ref:p})),
-    ...S.templates.map(t=>({kind:'recurring', createdAt:t.createdAt, ref:t}))
-  ].sort((a,b)=>b.createdAt-a.createdAt);
-  if(!items.length) wrap.appendChild(el(`<div class="empty"><b>这里还是空的</b>点右上角"+新建"，创建一个项目或周期事项。</div>`));
-  else wrap.appendChild(el(`<div class="libtablehead"><span></span><span>标题</span><span>需求方</span><span>事项类型</span><span>截止日期</span><span>步骤</span></div>`));
-  items.forEach(it=>{
-    wrap.appendChild(it.kind==='project' ? renderProjectCard(it.ref) : renderRecurringCard(it.ref));
-  });
+    </div>
+    <div id="libGroups"></div>`;
+  const groupsContainer = wrap.querySelector('#libGroups');
+  const search = (ui.libSearch||'').trim().toLowerCase();
+
+  function orderIndex(key){ const i=(S.libOrder||[]).indexOf(key); return i===-1?Infinity:i; }
+  function sortByOrder(items){
+    return items.slice().sort((a,b)=>{
+      const ia=orderIndex(a.key), ib=orderIndex(b.key);
+      if(ia!==ib) return ia-ib;
+      return b.createdAt - a.createdAt;
+    });
+  }
+
+  let projectItems = S.projects.map(p=>({kind:'project', key:'project:'+p.id, createdAt:p.createdAt, ref:p, name:p.name}));
+  let recurringItems = S.templates.map(t=>({kind:'recurring', key:'recurring:'+t.id, createdAt:t.createdAt, ref:t, name:t.name}));
+  if(search){
+    projectItems = projectItems.filter(it=>it.name.toLowerCase().includes(search));
+    recurringItems = recurringItems.filter(it=>it.name.toLowerCase().includes(search));
+  }
+  projectItems = sortByOrder(projectItems);
+  recurringItems = sortByOrder(recurringItems);
+
+  function wireLibDrag(card, key, sameCategoryItems){
+    card.draggable = true;
+    card.addEventListener('dragstart', (e)=>{ dragState.key = key; card.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', key); }catch(_){} });
+    card.addEventListener('dragend', ()=>{ card.classList.remove('dragging'); dragState.key=null; });
+    card.addEventListener('dragover', (e)=>{ e.preventDefault(); card.classList.add('dragover'); });
+    card.addEventListener('dragleave', ()=>{ card.classList.remove('dragover'); });
+    card.addEventListener('drop', (e)=>{
+      e.preventDefault(); card.classList.remove('dragover');
+      const fromKey = dragState.key;
+      if(!fromKey || fromKey===key) return;
+      if(fromKey.split(':')[0] !== key.split(':')[0]) return; // keep reordering within the same category
+      let order = sameCategoryItems.map(it=>it.key);
+      const fromI = order.indexOf(fromKey), toI = order.indexOf(key);
+      if(fromI<0 || toI<0) return;
+      order.splice(fromI,1); order.splice(toI,0,fromKey);
+      const others = (S.libOrder||[]).filter(k=>!sameCategoryItems.some(it=>it.key===k));
+      S.libOrder = [...others, ...order].filter((k,i,arr)=>arr.indexOf(k)===i);
+      // fold in any keys not yet tracked, preserving current visual order overall
+      const allVisible = [...projectItems, ...recurringItems].map(it=>it.key);
+      allVisible.forEach(k=>{ if(!S.libOrder.includes(k)) S.libOrder.push(k); });
+      persist('libOrder'); render();
+    });
+  }
+
+  if(!projectItems.length && !recurringItems.length){
+    groupsContainer.appendChild(el(`<div class="empty"><b>${search?'没有匹配的项目/周期事项':'这里还是空的'}</b>${search?'换个关键词试试':'点右上角"+新建"，创建一个项目或周期事项。'}</div>`));
+  } else {
+    groupsContainer.appendChild(el(`<div class="muted" style="font-size:12px;font-weight:600;margin:4px 2px 6px;letter-spacing:.2px;">项目制</div>`));
+    if(!projectItems.length) groupsContainer.appendChild(el(`<div class="empty" style="padding:14px;">${search?'没有匹配的项目':'还没有项目'}</div>`));
+    projectItems.forEach(it=>{
+      const card = renderProjectCard(it.ref);
+      if(!search) wireLibDrag(card, it.key, projectItems);
+      groupsContainer.appendChild(card);
+    });
+    groupsContainer.appendChild(el(`<div class="muted" style="font-size:12px;font-weight:600;margin:16px 2px 6px;letter-spacing:.2px;">周期性事项</div>`));
+    if(!recurringItems.length) groupsContainer.appendChild(el(`<div class="empty" style="padding:14px;">${search?'没有匹配的周期事项':'还没有周期性事项'}</div>`));
+    recurringItems.forEach(it=>{
+      const card = renderRecurringCard(it.ref);
+      if(!search) wireLibDrag(card, it.key, recurringItems);
+      groupsContainer.appendChild(card);
+    });
+  }
   setTimeout(()=>{
     const btn = document.getElementById('newLibBtn'), pop = document.getElementById('newLibPop');
     btn.onclick = (e)=>{ e.stopPropagation(); pop.style.display = pop.style.display==='none'?'block':'none'; };
@@ -1945,6 +2130,7 @@ function renderUnifiedProjects(){
       b.onclick = ()=>{ pop.style.display='none'; if(b.dataset.choice==='project') openProjectForm(); else openTemplateForm(); };
     });
     document.addEventListener('click', ()=>{ if(pop) pop.style.display='none'; }, {once:true});
+    document.getElementById('libSearchInput').oninput = (e)=>{ ui.libSearch = e.target.value; render(); };
   },0);
   return wrap;
 }
@@ -1952,6 +2138,7 @@ function renderUnifiedProjects(){
 function renderProjectCard(p){
   const open = !!ui.openCards['pj_'+p.id];
   const editingMeta = !!ui.openCards['editprojmeta_'+p.id];
+  const addStepOpen = !!ui.openCards['addstep_pj_'+p.id];
   const card = el(`<div class="libcard ${open?'open':''}"></div>`);
   const doneCount = (p.steps||[]).filter(s=>s.status==='done').length;
   const lhHtml = editingMeta ? `
@@ -1959,40 +2146,37 @@ function renderProjectCard(p){
       <span class="car">▸</span>
       <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:220px;">
         <input type="text" class="peName" value="${p.name.replace(/"/g,'&quot;')}" placeholder="项目名称" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);font-family:'Source Serif 4',serif;font-size:14.5px;">
-        <div class="inline" style="gap:6px;">
-          <div id="peWhoWrap_${p.id}" style="flex:1;"></div>
-          <input type="date" class="peDeadline" value="${p.deadline||''}" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
-        </div>
+        <div id="peWhoWrap_${p.id}"></div>
         <div class="btnrow" style="justify-content:flex-start;margin-top:0;">
           <button class="btn ghost sm" data-metacancel>取消</button>
           <button class="btn primary sm" data-metasave>保存</button>
+          <button class="btn ghost sm" data-endproj="${p.id}">${p.status==='已结束'?'重新激活':'标记为已结束'}</button>
+          <button class="btn ghost sm" data-delproj="${p.id}" style="color:var(--danger);">删除项目</button>
         </div>
       </div>
     </div>` : `
     <div class="lh" data-toggle="pj_${p.id}">
       <span class="car">▸</span>
-      <h3 data-clickmeta="1" style="cursor:text;">${p.name}</h3>
-      <span class="col-who-plain" data-clickmeta="1" style="cursor:text;">${stkLabel(p.stakeholder)||'+ 需求方'}</span>
-      <span class="tag cat-project">项目制</span>
-      <span class="col-deadline" data-clickmeta="1" style="cursor:text;">
-        <span class="tag time" style="${p.deadline?'':'opacity:.5;'}">${p.deadline?`截止 ${p.deadline}`:'+ 截止日期'}</span>
+      <span style="display:flex;align-items:center;gap:4px;overflow:hidden;">
+        <span class="tag cat-project">项目制</span>
         ${p.status==='已结束'?'<span class="tag" style="background:var(--paper-dim);color:var(--muted);">已结束</span>':''}
       </span>
+      <span class="col-who-plain" data-clickmeta="1" style="cursor:text;">${stkLabel(p.stakeholder)||'+ 需求方'}</span>
+      <h3 data-clickmeta="1" style="cursor:text;">${p.name}</h3>
       <span class="muted mono" style="font-size:11px;text-align:right;">${doneCount}/${(p.steps||[]).length} 步骤</span>
     </div>`;
   card.innerHTML = lhHtml + `
     <div class="detail">
       <div class="chain" id="pjchain_${p.id}"></div>
+      ${addStepOpen ? `
       <div class="addstepline" style="flex-wrap:wrap;align-items:center;gap:8px;">
         <input type="text" placeholder="＋ 新增步骤/检查点内容..." data-newstep-content="${p.id}" style="flex:1;min-width:180px;">
         <div id="newstepDtWrap_${p.id}"></div>
         <div id="newstepRecWrap_${p.id}"></div>
         <button class="btn ghost sm" data-addstepbtn="${p.id}">添加</button>
-      </div>
-      <div class="btnrow" style="justify-content:flex-start;margin-top:10px;">
-        <button class="btn ghost sm" data-endproj="${p.id}">${p.status==='已结束'?'重新激活':'标记为已结束'}</button>
-        <button class="btn ghost sm" data-delproj="${p.id}" style="color:var(--danger);">删除项目</button>
-      </div>
+        <button class="btn ghost sm" data-hideaddstep="${p.id}">收起</button>
+      </div>` : `
+      <button class="btn ghost sm" data-showaddstep="${p.id}" style="margin-top:10px;">+ 新增步骤/检查点</button>`}
     </div>`;
   let pendingStepRec = null;
   let pendingStepDt = { date:'', time:'', noTime:false };
@@ -2014,15 +2198,26 @@ function renderProjectCard(p){
         if(!name){ alert('项目名称不能为空'); return; }
         p.name = name;
         p.stakeholder = peWho.getValue();
-        p.deadline = card.querySelector('.peDeadline').value || null;
         ui.openCards['editprojmeta_'+p.id]=false;
         persist('projects'); render();
       };
+      card.querySelector(`[data-endproj="${p.id}"]`).onclick = ()=>{ p.status = p.status==='已结束'?'进行中':'已结束'; persist('projects'); render(); };
+      card.querySelector(`[data-delproj="${p.id}"]`).onclick = ()=>{
+        if(confirm(`确定删除项目「${p.name}」吗？这会连同它下面所有的步骤和经验记录一起永久删除，不可恢复。`)){
+          S.projects = S.projects.filter(x=>x.id!==p.id);
+          persist('projects'); render();
+        }
+      };
     }
-    const dtPicker = renderDateTimePicker(null, (val)=>{ pendingStepDt = val; });
-    card.querySelector(`#newstepDtWrap_${p.id}`).appendChild(dtPicker);
-    const recPicker = renderRecurrencePicker(null, (rec)=>{ pendingStepRec = rec; }, false);
-    card.querySelector(`#newstepRecWrap_${p.id}`).appendChild(recPicker);
+    if(addStepOpen){
+      const dtPicker = renderDateTimePicker(null, (val)=>{ pendingStepDt = val; });
+      card.querySelector(`#newstepDtWrap_${p.id}`).appendChild(dtPicker);
+      const recPicker = renderRecurrencePicker(null, (rec)=>{ pendingStepRec = rec; }, false);
+      card.querySelector(`#newstepRecWrap_${p.id}`).appendChild(recPicker);
+      card.querySelector(`[data-hideaddstep="${p.id}"]`).onclick = ()=>{ ui.openCards['addstep_pj_'+p.id]=false; render(); };
+    } else {
+      card.querySelector(`[data-showaddstep="${p.id}"]`).onclick = ()=>{ ui.openCards['addstep_pj_'+p.id]=true; render(); };
+    }
     const chainEl = card.querySelector(`#pjchain_${p.id}`);
     (p.steps||[]).forEach(st=>{
       const item = renderCheckpointItem(st, {
@@ -2039,6 +2234,7 @@ function renderProjectCard(p){
         onAddTakeaway: ()=> quickAddTakeawayFor('project', p, st.content, st.id),
         takeawayList: p.takeaways,
         takeawayStepId: st.id,
+        persistKey: 'projects',
         onDelete: ()=>{ p.steps = (p.steps||[]).filter(s=>s.id!==st.id); persist('projects'); render(); },
         onSave: ({content, dtVal, repeatVal})=>{
           st.content = content;
@@ -2049,30 +2245,26 @@ function renderProjectCard(p){
           persist('projects'); render();
         }
       });
+      wireStepDrag(item, p.steps, st.id, 'projects');
       chainEl.appendChild(item);
     });
-    card.querySelector(`[data-addstepbtn="${p.id}"]`).onclick = ()=>{
-      const contentInp = card.querySelector(`[data-newstep-content="${p.id}"]`);
-      if(contentInp.value.trim()){
-        p.steps = p.steps||[];
-        if(pendingStepRec) pendingStepRec.rangeStart = pendingStepDt.date || todayStr();
-        p.steps.push({
-          id:uid(), content:contentInp.value.trim(),
-          date: pendingStepDt.date || (pendingStepRec ? firstOccurrenceDate(pendingStepRec) : null),
-          time: pendingStepDt.noTime? null : (pendingStepDt.time || null),
-          repeat: pendingStepRec,
-          status:'todo'
-        });
-        persist('projects'); ui.openCards['pj_'+p.id]=true; render();
-      }
-    };
-    card.querySelector(`[data-endproj="${p.id}"]`).onclick = ()=>{ p.status = p.status==='已结束'?'进行中':'已结束'; persist('projects'); render(); };
-    card.querySelector(`[data-delproj="${p.id}"]`).onclick = ()=>{
-      if(confirm(`确定删除项目「${p.name}」吗？这会连同它下面所有的步骤和经验记录一起永久删除，不可恢复。`)){
-        S.projects = S.projects.filter(x=>x.id!==p.id);
-        persist('projects'); render();
-      }
-    };
+    if(addStepOpen){
+      card.querySelector(`[data-addstepbtn="${p.id}"]`).onclick = ()=>{
+        const contentInp = card.querySelector(`[data-newstep-content="${p.id}"]`);
+        if(contentInp.value.trim()){
+          p.steps = p.steps||[];
+          if(pendingStepRec) pendingStepRec.rangeStart = pendingStepDt.date || todayStr();
+          p.steps.push({
+            id:uid(), content:contentInp.value.trim(),
+            date: pendingStepDt.date || (pendingStepRec ? firstOccurrenceDate(pendingStepRec) : null),
+            time: pendingStepDt.noTime? null : (pendingStepDt.time || null),
+            repeat: pendingStepRec,
+            status:'todo'
+          });
+          persist('projects'); ui.openCards['pj_'+p.id]=true; render();
+        }
+      };
+    }
   },0);
   return card;
 }
@@ -2080,6 +2272,7 @@ function renderProjectCard(p){
 function renderRecurringCard(t){
   const open = !!ui.openCards['tp_'+t.id];
   const editingMeta = !!ui.openCards['edittplmeta_'+t.id];
+  const addStepOpen = !!ui.openCards['addstep_tp_'+t.id];
   const card = el(`<div class="libcard ${open?'open':''}"></div>`);
   const lhHtml = editingMeta ? `
     <div class="lh" style="display:flex;flex-wrap:wrap;align-items:flex-start;cursor:default;">
@@ -2090,25 +2283,29 @@ function renderRecurringCard(t){
         <div class="btnrow" style="justify-content:flex-start;margin-top:0;">
           <button class="btn ghost sm" data-metacancel>取消</button>
           <button class="btn primary sm" data-metasave>保存</button>
+          <button class="btn ghost sm" data-deltpl="${t.id}" style="color:var(--danger);">删除周期事项</button>
         </div>
       </div>
     </div>` : `
     <div class="lh" data-toggle="tp_${t.id}">
       <span class="car">▸</span>
-      <h3 data-clickmeta="1" style="cursor:text;">${t.name}</h3>
-      <span class="col-who-plain" data-clickmeta="1" style="cursor:text;">${stkLabel(t.stakeholder)||'+ 需求方'}</span>
       <span class="tag cat-recurring">周期性</span>
-      <span class="col-deadline"></span>
+      <span class="col-who-plain" data-clickmeta="1" style="cursor:text;">${stkLabel(t.stakeholder)||'+ 需求方'}</span>
+      <h3 data-clickmeta="1" style="cursor:text;">${t.name}</h3>
       <span class="muted mono" style="font-size:11px;text-align:right;">${t.steps.length} 步骤</span>
     </div>`;
   card.innerHTML = lhHtml + `
     <div class="detail">
-      <div class="hint" style="margin-bottom:8px;">步骤定义（每个步骤单独设置自己的循环规则，互不影响——可以有的按周、有的按月、有的按年）：</div>
       <div id="tpsteps_${t.id}"></div>
-      <div class="btnrow" style="justify-content:flex-start;margin-top:10px;">
-        <button class="btn ghost sm" data-edittpl="${t.id}">编辑步骤定义</button>
-        <button class="btn ghost sm" data-deltpl="${t.id}" style="color:var(--danger);">删除周期事项</button>
-      </div>
+      ${addStepOpen ? `
+      <div class="addstepline" style="flex-wrap:wrap;align-items:center;gap:8px;">
+        <input type="text" placeholder="＋ 新增步骤内容..." data-newstep-content="${t.id}" style="flex:1;min-width:180px;">
+        <div id="newstepTimeWrap_${t.id}"></div>
+        <div id="newstepRecWrap_${t.id}"></div>
+        <button class="btn ghost sm" data-addstepbtn="${t.id}">添加</button>
+        <button class="btn ghost sm" data-hideaddstep="${t.id}">收起</button>
+      </div>` : `
+      <button class="btn ghost sm" data-showaddstep="${t.id}" style="margin-top:10px;">+ 新增步骤</button>`}
     </div>`;
   setTimeout(()=>{
     if(!editingMeta){
@@ -2131,26 +2328,51 @@ function renderRecurringCard(t){
         ui.openCards['edittplmeta_'+t.id]=false;
         persist('templates'); render();
       };
+      card.querySelector(`[data-deltpl="${t.id}"]`).onclick = ()=>{
+        if(confirm(`确定删除周期事项「${t.name}」吗？这会连同它所有已生成的周期实例和经验记录一起永久删除，不可恢复。`)){
+          S.templates = S.templates.filter(x=>x.id!==t.id);
+          S.cycles = S.cycles.filter(c=>c.templateId!==t.id);
+          persist('templates'); persist('cycles'); render();
+        }
+      };
     }
     const stepsEl = card.querySelector(`#tpsteps_${t.id}`);
     t.steps.forEach(st=>{
-      const recTxt = st.repeat ? recurrenceSummary(st.repeat) : '未设置循环规则';
-      const item = el(`<div class="chain-item"><div class="dot"></div><div class="stxt">${st.content}</div><div class="stime mono">${recTxt} ${st.noTime?'无固定时间':(st.time||'')}</div><button class="iconbtn" title="记录经验" style="margin-left:2px;">💡+</button></div>`);
-      item.querySelector('.iconbtn').onclick = ()=> quickAddTakeawayFor('template', t, st.content, st.id);
-      const tag = stepTakeawayTag(t.takeaways, st.id);
-      if(tag) item.querySelector('.stxt').appendChild(tag);
+      const item = renderTemplateStepItem(t, st, {
+        onAddTakeaway: ()=> quickAddTakeawayFor('template', t, st.content, st.id),
+        takeawayList: t.takeaways,
+        takeawayStepId: st.id,
+        persistKey: 'templates',
+        onDelete: ()=>{ t.steps = t.steps.filter(s=>s.id!==st.id); persist('templates'); render(); },
+        onSave: ({content, time, noTime, repeat})=>{
+          st.content = content; st.time = time; st.noTime = noTime; st.repeat = repeat;
+          persist('templates'); render();
+        }
+      });
+      wireStepDrag(item, t.steps, st.id, 'templates');
       stepsEl.appendChild(item);
-      const expanded = stepTakeawayExpanded(t.takeaways, st.id);
-      if(expanded) stepsEl.appendChild(expanded);
     });
-    card.querySelector(`[data-edittpl="${t.id}"]`).onclick = ()=> openTemplateForm(t);
-    card.querySelector(`[data-deltpl="${t.id}"]`).onclick = ()=>{
-      if(confirm(`确定删除周期事项「${t.name}」吗？这会连同它所有已生成的周期实例和经验记录一起永久删除，不可恢复。`)){
-        S.templates = S.templates.filter(x=>x.id!==t.id);
-        S.cycles = S.cycles.filter(c=>c.templateId!==t.id);
-        persist('templates'); persist('cycles'); render();
-      }
-    };
+    if(addStepOpen){
+      const newstepTimeWrap = card.querySelector(`#newstepTimeWrap_${t.id}`);
+      newstepTimeWrap.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:nowrap;';
+      newstepTimeWrap.innerHTML = `<input type="time" value="09:00" style="padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--card);"><label style="font-size:11px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;"><input type="checkbox"> 无固定时间</label>`;
+      let pendingNewStepRec = null;
+      const newStepRecPicker = renderRecurrencePicker(null, (rec)=>{ pendingNewStepRec = rec; }, false);
+      card.querySelector(`#newstepRecWrap_${t.id}`).appendChild(newStepRecPicker);
+      card.querySelector(`[data-addstepbtn="${t.id}"]`).onclick = ()=>{
+        const contentInp = card.querySelector(`[data-newstep-content="${t.id}"]`);
+        const content = contentInp.value.trim();
+        if(!content){ return; }
+        if(!pendingNewStepRec){ alert('请先给这个步骤设置循环规则（点"不重复"按钮设置）'); return; }
+        const timeInp = newstepTimeWrap.querySelector('input[type="time"]');
+        const noTimeChk = newstepTimeWrap.querySelector('input[type="checkbox"]');
+        t.steps.push({ id:uid(), content, time: noTimeChk.checked?null:(timeInp.value||'09:00'), noTime:noTimeChk.checked, reminder:true, repeat:pendingNewStepRec });
+        persist('templates'); render();
+      };
+      card.querySelector(`[data-hideaddstep="${t.id}"]`).onclick = ()=>{ ui.openCards['addstep_tp_'+t.id]=false; render(); };
+    } else {
+      card.querySelector(`[data-showaddstep="${t.id}"]`).onclick = ()=>{ ui.openCards['addstep_tp_'+t.id]=true; render(); };
+    }
   },0);
   return card;
 }
@@ -2160,11 +2382,8 @@ function openProjectForm(existing){
   const overlay = el(`<div class="overlay"></div>`);
   overlay.innerHTML = `<div class="modal">
     <h2>${existing?'编辑项目信息':'新建项目'}</h2>
-    <div class="field"><label>项目名称${existing?'':'（新建时可以直接打一句话描述，回车让 AI 自动帮你填需求方/截止时间）'}</label><input type="text" id="pName" value="${existing?existing.name:''}" placeholder="例如：投研工作AI开发，下周五前给张总"></div>
-    <div class="inline">
-      <div class="field"><label>需求方</label><div id="pWhoWrap"></div></div>
-      <div class="field"><label>截止时间（可选）</label><input type="date" id="pDeadline" value="${existing&&existing.deadline?existing.deadline:''}"></div>
-    </div>
+    <div class="field"><label>项目名称${existing?'':'（新建时可以直接打一句话描述，回车让 AI 自动帮你填需求方）'}</label><input type="text" id="pName" value="${existing?existing.name:''}" placeholder="例如：投研工作AI开发，下周五前给张总"></div>
+    <div class="field"><label>需求方</label><div id="pWhoWrap"></div></div>
     <div class="btnrow"><button class="btn ghost" id="pCancel">取消</button><button class="btn primary" id="pSave">${existing?'保存':'创建'}</button></div>
   </div>`;
   document.body.appendChild(overlay);
@@ -2174,7 +2393,6 @@ function openProjectForm(existing){
     wireEnterToAIParse(overlay.querySelector('#pName'), (d)=>{
       overlay.querySelector('#pName').value = d.title || overlay.querySelector('#pName').value;
       if(d.stakeholder) pWho.setValue([d.stakeholder]);
-      if(d.dueDate) overlay.querySelector('#pDeadline').value = d.dueDate;
     });
   }
   overlay.querySelector('#pCancel').onclick = ()=>overlay.remove();
@@ -2184,10 +2402,9 @@ function openProjectForm(existing){
     if(existing){
       existing.name = name;
       existing.stakeholder = pWho.getValue();
-      existing.deadline = overlay.querySelector('#pDeadline').value || null;
     } else {
       S.projects.push({id:uid(), name, stakeholder:pWho.getValue(),
-        deadline:overlay.querySelector('#pDeadline').value||null, status:'进行中', createdAt:Date.now(), steps:[], takeaways:[]});
+        status:'进行中', createdAt:Date.now(), steps:[], takeaways:[]});
     }
     persist('projects'); overlay.remove(); ui.tab='projects'; render();
   };
@@ -2203,17 +2420,15 @@ function openTemplateForm(existing){
 function renderTemplateModal(draft, editId){
   const old = document.getElementById('tplOverlay'); if(old) old.remove();
   const overlay = el(`<div class="overlay" id="tplOverlay"></div>`);
-  overlay.innerHTML = `<div class="modal" style="max-width:640px;">
+  overlay.innerHTML = `<div class="modal" style="max-width:${editId?640:480}px;">
     <h2>${editId?'编辑周期事项':'新建周期事项'}</h2>
-    <div class="inline">
-      <div class="field"><label>事项名称${editId?'':'（新建时可以直接打一句话描述，回车让 AI 自动帮你填需求方）'}</label><input type="text" id="tName" value="${draft.name}" placeholder="例如：VC组周会组织与会后跟进"></div>
-      <div class="field"><label>需求方</label><div id="tWhoWrap"></div></div>
-    </div>
-
+    <div class="field"><label>事项名称${editId?'':'（新建时可以直接打一句话描述，回车让 AI 自动帮你填需求方）'}</label><input type="text" id="tName" value="${draft.name}" placeholder="例如：VC组周会组织与会后跟进"></div>
+    <div class="field"><label>需求方</label><div id="tWhoWrap"></div></div>
+    ${editId? `
     <div class="field"><label>步骤（每个步骤单独设置自己的循环规则——同一个"周期事项"下，有的可以按周、有的按月、有的按年，互不影响）</label><div id="stepList"></div>
       <button class="btn ghost sm" id="addStepBtn" style="margin-top:6px;">+ 添加步骤</button>
-    </div>
-    <div class="btnrow"><button class="btn ghost" id="tCancel">取消</button><button class="btn primary" id="tSave">保存</button></div>
+    </div>` : `<div class="hint" style="margin:4px 0 0;">创建之后，回到它的卡片下面就能直接添加具体步骤了，每个步骤自己单独设置循环规则。</div>`}
+    <div class="btnrow"><button class="btn ghost" id="tCancel">取消</button><button class="btn primary" id="tSave">${editId?'保存':'创建'}</button></div>
   </div>`;
   document.body.appendChild(overlay);
   const tWho = renderStakeholderPicker(draft.stakeholder);
@@ -2222,10 +2437,6 @@ function renderTemplateModal(draft, editId){
     wireEnterToAIParse(overlay.querySelector('#tName'), (d)=>{
       overlay.querySelector('#tName').value = d.title || overlay.querySelector('#tName').value;
       if(d.stakeholder) tWho.setValue([d.stakeholder]);
-      if(!draft.steps.length && d.title){
-        draft.steps.push({content:d.title, time:d.noTime?null:(d.time||'09:00'), noTime:!!d.noTime, reminder:true, repeat:null});
-        renderStepRows();
-      }
     });
   }
 
@@ -2257,16 +2468,21 @@ function renderTemplateModal(draft, editId){
     });
     listEl.querySelectorAll('[data-delstep]').forEach(b=>{ b.onclick=()=>{ draft.steps.splice(+b.dataset.delstep,1); renderStepRows(); }; });
   }
-  overlay.querySelector('#addStepBtn').onclick = ()=>{ draft.steps.push({content:'', time:'09:00', noTime:false, reminder:true, repeat:null}); renderStepRows(); };
-  renderStepRows();
+  if(editId){
+    overlay.querySelector('#addStepBtn').onclick = ()=>{ draft.steps.push({content:'', time:'09:00', noTime:false, reminder:true, repeat:null}); renderStepRows(); };
+    renderStepRows();
+  }
   overlay.querySelector('#tCancel').onclick = ()=>overlay.remove();
   overlay.querySelector('#tSave').onclick = ()=>{
     const name = overlay.querySelector('#tName').value.trim();
-    if(!name || !draft.steps.length){ alert('请填写事项名称并至少添加一个步骤'); return; }
-    const missing = draft.steps.findIndex(s=>!s.repeat);
-    if(missing!==-1){ alert(`第 ${missing+1} 个步骤还没设置循环规则，每个步骤都需要设置。`); return; }
-    for(const s of draft.steps){
-      if(s.repeat.freq==='weekly' && !s.repeat.weekdays.length){ alert(`步骤「${s.content||'(未命名)'}」按周循环但没有勾选任何星期，请检查。`); return; }
+    if(!name){ alert('请填写事项名称'); return; }
+    if(editId){
+      if(!draft.steps.length){ alert('请至少添加一个步骤'); return; }
+      const missing = draft.steps.findIndex(s=>!s.repeat);
+      if(missing!==-1){ alert(`第 ${missing+1} 个步骤还没设置循环规则，每个步骤都需要设置。`); return; }
+      for(const s of draft.steps){
+        if(s.repeat.freq==='weekly' && !s.repeat.weekdays.length){ alert(`步骤「${s.content||'(未命名)'}」按周循环但没有勾选任何星期，请检查。`); return; }
+      }
     }
     const stakeholder = tWho.getValue();
     if(editId){
@@ -2274,8 +2490,7 @@ function renderTemplateModal(draft, editId){
       t.name=name; t.stakeholder=stakeholder;
       t.steps = draft.steps.map(s=>({id:s.id||uid(), content:s.content, time:s.time, noTime:s.noTime, reminder:s.reminder, repeat:s.repeat}));
     } else {
-      S.templates.push({ id:uid(), name, stakeholder,
-        steps: draft.steps.map(s=>({id:uid(), content:s.content, time:s.time, noTime:s.noTime, reminder:s.reminder, repeat:s.repeat})), takeaways:[], createdAt:Date.now() });
+      S.templates.push({ id:uid(), name, stakeholder, steps:[], takeaways:[], createdAt:Date.now() });
     }
     persist('templates'); overlay.remove(); ui.tab='projects'; render();
   };
@@ -2345,11 +2560,6 @@ create policy "own rows only" on app_data
     <div class="chipwrap" id="stkChips"></div>
     <div class="addline"><input type="text" id="stkNew" placeholder="新增常用需求方..."><button class="btn ghost sm" id="stkAdd">添加</button></div>`;
   wrap.appendChild(dd);
-  const dd2 = el(`<div class="dropdownmgr"></div>`);
-  dd2.innerHTML = `<h3 style="font-size:14px;margin-bottom:6px;">常用事项名称</h3>
-    <div class="chipwrap" id="nameChips"></div>
-    <div class="addline"><input type="text" id="nameNew" placeholder="新增常用事项名称..."><button class="btn ghost sm" id="nameAdd">添加</button></div>`;
-  wrap.appendChild(dd2);
 
   // backup
   const backup = el(`<div class="dropdownmgr"></div>`);
@@ -2419,13 +2629,11 @@ create policy "own rows only" on app_data
       });
     }
     renderChips('stkChips', S.dropdowns.stakeholders);
-    renderChips('nameChips', S.dropdowns.eventNames);
     document.getElementById('stkAdd').onclick = ()=>{ const v=document.getElementById('stkNew').value.trim(); if(v){ S.dropdowns.stakeholders.push(v); persist('dropdowns'); render(); } };
-    document.getElementById('nameAdd').onclick = ()=>{ const v=document.getElementById('nameNew').value.trim(); if(v){ S.dropdowns.eventNames.push(v); persist('dropdowns'); render(); } };
     document.getElementById('exportBtn').onclick = ()=>{
       const exportable = {
         templates:S.templates, projects:S.projects, instances:S.instances, cycles:S.cycles,
-        dropdowns:S.dropdowns, takeawaysByName:S.takeawaysByName, freeTakeaways:S.freeTakeaways, todayOrder:S.todayOrder, raw:S.raw
+        dropdowns:S.dropdowns, takeawaysByName:S.takeawaysByName, freeTakeaways:S.freeTakeaways, libOrder:S.libOrder, todayOrder:S.todayOrder, raw:S.raw
       };
       const blob = new Blob([JSON.stringify(exportable,null,2)], {type:'application/json'});
       const url = URL.createObjectURL(blob);
@@ -2532,11 +2740,14 @@ function blankDraft(text){
 // creation forms), reusing the same aiParse() used by the quick-add bar. onFilled(draft) is
 // called with the first parsed item so the caller can push values into its own form fields.
 function wireEnterToAIParse(inputEl, onFilled){
+  let busy = false;
   inputEl.onkeydown = async (e)=>{
     if(e.key!=='Enter') return;
     e.preventDefault();
+    if(busy) return;
     const text = inputEl.value.trim();
     if(!text) return;
+    busy = true;
     showToast('AI 解析中…');
     try{
       const drafts = await aiParse(text);
@@ -2545,6 +2756,8 @@ function wireEnterToAIParse(inputEl, onFilled){
       showToast('已用 AI 识别结果自动填充，请检查一下');
     }catch(err){
       showToast('AI 解析失败（'+err.message+'），请手动填写');
+    } finally {
+      busy = false;
     }
   };
 }
@@ -2760,7 +2973,7 @@ function renderConfirmModal(){
           }
         }
       } else if(willCreateProject || ((d.projectText||'').trim() && d.createProject!==false)){
-        const newProj = {id:uid(), name:(d.projectText||'').trim()||d.title, stakeholder:d.stakeholder, deadline:d.dueDate||null, status:'进行中', createdAt:Date.now(),
+        const newProj = {id:uid(), name:(d.projectText||'').trim()||d.title, stakeholder:d.stakeholder, status:'进行中', createdAt:Date.now(),
           steps:[{id:uid(), content:d.title, date:d.dueDate||null, time:d.noTime?null:(d.time||null), noTime:!!d.noTime, status:'todo'}], takeaways:[]};
         if(expContent) newProj.takeaways.push(makeEntry(newProj.steps[0].id));
         S.projects.push(newProj);
