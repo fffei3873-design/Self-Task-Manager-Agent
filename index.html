@@ -57,7 +57,9 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
 .row{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--radius);padding:9px 13px;margin-bottom:6px;box-shadow:var(--shadow);}
 .row .top{display:flex;align-items:flex-start;gap:10px;}
 .rowgrid{display:grid;grid-template-columns:80px 124px 1fr 32px 32px 20px;align-items:center;gap:12px;}
+.rowgrid.simple{grid-template-columns:70px 1fr 32px 20px;}
 .tablehead{display:grid;grid-template-columns:80px 124px 1fr 32px 32px 20px;gap:12px;padding:2px 13px 7px;}
+.tablehead.simple{grid-template-columns:70px 1fr 32px 20px;}
 .tablehead span{font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:.3px;text-transform:uppercase;}
 .rowgrid .col-time{font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);line-height:1.35;}
 .rowgrid .col-time .ov{display:block;color:var(--amber);font-size:10px;margin-top:1px;font-family:inherit;}
@@ -443,7 +445,7 @@ let S = {
   todayOrder:{date:null, order:[]},
   raw:[]
 };
-let ui = { tab:'today', openCards:{}, whoFilter:'', pendingCards:[], newMenuOpen:false, taTagFilter:'', taSearch:'', taView:'source', weekOffset:0 };
+let ui = { tab:'today', openCards:{}, whoFilter:'', pendingCards:[], newMenuOpen:false, taTagFilter:'', taSearch:'', taView:'source', weekOffset:0, todayView:'classic' };
 
 async function loadAll(){
   S.templates = await loadKey('templates', []);
@@ -1041,20 +1043,28 @@ function wireWeekStrip(){
 
 function renderToday(){
   const wrap = el(`<div></div>`);
+  const simple = ui.todayView==='simple';
   wrap.innerHTML = `<div class="quickaddbar">
     <input type="text" id="quickAddInput" placeholder="快速添加一条待办，回车自动 AI 解析…">
     <button class="iconbtn" id="quickAddAI" title="打开完整录入框（支持语音、一次拆多条、更细致地关联项目/识别时间）">✨ 完整录入</button>
+  </div>
+  <div class="filterbar" style="margin-bottom:2px;">
+    <div class="newmenu">
+      <button class="btn ${simple?'ghost':'primary'} sm" data-todayview="classic">经典版</button>
+      <button class="btn ${simple?'primary':'ghost'} sm" data-todayview="simple">简洁版</button>
+    </div>
   </div>` + filterBarHtml();
   let rows = buildRowsForDate(todayStr());
   rows = applyWhoFilter(rows);
   rows = sortRows(rows, true);
   const list = el(`<div id="rowlist"></div>`);
   if(!rows.length){ list.appendChild(el(`<div class="empty"><b>今天暂时干净</b>没有到期的事项，在上面输入框回车随手记一条。</div>`)); }
-  else { list.appendChild(el(tableHeaderHtml())); rows.forEach((r,i)=> list.appendChild(renderRow(r, true, i, rows.length))); }
+  else { list.appendChild(el(tableHeaderHtml(simple))); rows.forEach((r,i)=> list.appendChild(renderRow(r, true, i, rows.length, simple))); }
   wrap.appendChild(list);
   setTimeout(()=>{
     const sel=document.getElementById('whoFilter'); if(sel) sel.onchange=()=>{ ui.whoFilter=sel.value; render(); };
     wireWeekStrip();
+    wrap.querySelectorAll('[data-todayview]').forEach(b=>{ b.onclick = ()=>{ ui.todayView = b.dataset.todayview; render(); }; });
     const qaInput = document.getElementById('quickAddInput');
     qaInput.onkeydown = (e)=>{
       if(e.key==='Enter' && qaInput.value.trim()){
@@ -1069,33 +1079,59 @@ function renderToday(){
 }
 function renderWeek(){
   const wrap = el(`<div></div>`);
-  wrap.innerHTML = filterBarHtml();
+  const simple = ui.todayView==='simple';
+  wrap.innerHTML = `<div class="filterbar" style="margin-bottom:2px;">
+    <div class="newmenu">
+      <button class="btn ${simple?'ghost':'primary'} sm" data-todayview="classic">经典版</button>
+      <button class="btn ${simple?'primary':'ghost'} sm" data-todayview="simple">简洁版</button>
+    </div>
+  </div>` + filterBarHtml();
   const mon = addDays(mondayOfWeek(new Date()), ui.weekOffset*7);
   for(let i=0;i<7;i++){
     const d = addDays(mon,i); const ds = fmtDate(d);
     let rows = buildRowsForDate(ds); rows = applyWhoFilter(rows); rows = sortRows(rows, ds===todayStr());
     wrap.appendChild(el(`<div class="daylabel" id="daysec_${ds}"><span class="d">${WEEKDAY_NAMES_FULL[i]}</span><span class="n mono">${ds}${ds===todayStr()?' · 今天':''}</span><hr></div>`));
     if(!rows.length){ wrap.appendChild(el(`<div class="empty" style="padding:14px;">暂无安排</div>`)); }
-    else { wrap.appendChild(el(tableHeaderHtml())); rows.forEach((r,idx)=> wrap.appendChild(renderRow(r, false, idx, rows.length))); }
+    else { wrap.appendChild(el(tableHeaderHtml(simple))); rows.forEach((r,idx)=> wrap.appendChild(renderRow(r, false, idx, rows.length, simple))); }
   }
-  setTimeout(()=>{ const sel=document.getElementById('whoFilter'); if(sel) sel.onchange=()=>{ ui.whoFilter=sel.value; render(); }; wireWeekStrip(); },0);
+  setTimeout(()=>{
+    const sel=document.getElementById('whoFilter'); if(sel) sel.onchange=()=>{ ui.whoFilter=sel.value; render(); };
+    wireWeekStrip();
+    wrap.querySelectorAll('[data-todayview]').forEach(b=>{ b.onclick = ()=>{ ui.todayView = b.dataset.todayview; render(); }; });
+  },0);
   return wrap;
 }
-function tableHeaderHtml(){
+function tableHeaderHtml(simple){
+  if(simple) return `<div class="tablehead simple"><span>时间</span><span>事项</span><span></span><span></span></div>`;
   return `<div class="tablehead"><span>时间</span><span>需求方</span><span>事项内容</span><span>状态</span><span>经验</span><span></span></div>`;
 }
 function catTagHtml(cat){
   const map = {recurring:['周期','cat-recurring'], adhoc:['日常','cat-adhoc'], project:['项目','cat-project']};
   const [label,cls] = map[cat]; return `<span class="tag ${cls}">${label}</span>`;
 }
-function renderRow(r, movable, idx, total){
+function renderRow(r, movable, idx, total, simple){
   if(r.kind==='recurringStep' || r.kind==='projectNext'){
-    return renderCheckpointRow(r, movable);
+    return renderCheckpointRow(r, movable, simple);
   }
-  return renderAdhocRow(r, movable);
+  return renderAdhocRow(r, movable, simple);
 }
 
-function renderCheckpointRow(r, movable){
+function wireRowDrag(row, r, movable){
+  if(!movable) return;
+  row.draggable = true;
+  row.dataset.rowkey = r.key;
+  row.addEventListener('dragstart', (e)=>{ dragState.key = r.key; row.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', r.key); }catch(_){} });
+  row.addEventListener('dragend', ()=>{ row.classList.remove('dragging'); dragState.key=null; });
+  row.addEventListener('dragover', (e)=>{ e.preventDefault(); row.classList.add('dragover'); });
+  row.addEventListener('dragleave', ()=>{ row.classList.remove('dragover'); });
+  row.addEventListener('drop', (e)=>{
+    e.preventDefault(); row.classList.remove('dragover');
+    const fromKey = dragState.key;
+    if(!fromKey || fromKey===r.key) return;
+    reorderTodayRows(fromKey, r.key);
+  });
+}
+function renderCheckpointRow(r, movable, simple){
   const st = r.refStep;
   const editKey = 'editstep_' + st.id;
   const editing = !!ui.openCards[editKey];
@@ -1129,6 +1165,22 @@ function renderCheckpointRow(r, movable){
   const done = r.status==='done';
   const row = el(`<div class="row ${done?'done':''}"></div>`);
   const timeTxt = r.noTime ? '无固定时间' : (r.time || '—');
+  if(simple){
+    row.innerHTML = `
+      <div class="rowgrid simple">
+        <div class="col-time">${timeTxt}</div>
+        <div class="col-content"><div class="title" data-clickedit="1">${r.title}</div></div>
+        <button class="chk ${done?'done':''}" data-key="${r.key}">${done?'✓':''}</button>
+        ${movable? `<span class="draghandle" title="拖拽调整顺序">⠿</span>` : `<span></span>`}
+      </div>
+    `;
+    wireRowDrag(row, r, movable);
+    setTimeout(()=>{
+      row.querySelector('.chk').onclick = ()=> toggleRow(r);
+      row.querySelector('[data-clickedit]').onclick = ()=>{ ui.openCards[editKey]=true; render(); };
+    },0);
+    return row;
+  }
   const overdueHtml = r.overdueDays? `<span class="ov">逾期${r.overdueDays}天</span>` : '';
   const whoTxt = stkLabel(r.stakeholder) || '—';
   const parentIcon = r.category==='recurring' ? '🔁' : '📁';
@@ -1179,7 +1231,7 @@ function renderCheckpointRow(r, movable){
   return row;
 }
 
-function renderAdhocRow(r, movable){
+function renderAdhocRow(r, movable, simple){
   const editKey = 'editrow_' + r.key;
   const editing = !!ui.openCards[editKey];
   const inst = r.refInstance;
@@ -1270,6 +1322,22 @@ function renderAdhocRow(r, movable){
   const done = r.status==='done';
   row.className = `row ${done?'done':''}`;
   const timeTxt = r.noTime ? '无固定时间' : (r.time || '—');
+  if(simple){
+    row.innerHTML = `
+      <div class="rowgrid simple">
+        <div class="col-time">${timeTxt}</div>
+        <div class="col-content"><div class="title" data-clickedit="1">${r.title}</div></div>
+        <button class="chk ${done?'done':''}" data-key="${r.key}">${done?'✓':''}</button>
+        ${movable? `<span class="draghandle" title="拖拽调整顺序">⠿</span>` : `<span></span>`}
+      </div>
+    `;
+    wireRowDrag(row, r, movable);
+    setTimeout(()=>{
+      row.querySelector('.chk').onclick = ()=> toggleRow(r);
+      row.querySelector('[data-clickedit]').onclick = ()=>{ ui.openCards[editKey]=true; render(); };
+    },0);
+    return row;
+  }
   const overdueHtml = r.overdueDays? `<span class="ov">逾期${r.overdueDays}天</span>` : '';
   const whoTxt = stkLabel(r.stakeholder) || '—';
   const repeatTxt = inst.repeat? `🔁 ${repeatLabel(inst.repeat)}` : '';
