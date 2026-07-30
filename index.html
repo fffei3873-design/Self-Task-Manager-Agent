@@ -227,14 +227,54 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
   nav.tabs{overflow-x:auto;}
   .weeknav{width:100%;margin-left:0;}
   .weekstrip{overflow-x:auto;width:100%;}
-  .rowgrid{grid-template-columns:52px 68px 1fr 28px 28px 16px;gap:6px;}
-  .tablehead{grid-template-columns:52px 68px 1fr 28px 28px 16px;gap:6px;}
-  .libcard .lh{grid-template-columns:16px 56px 90px 1fr 60px;gap:5px;}
-  .libtablehead{grid-template-columns:16px 1fr 76px 70px 90px 60px;gap:6px;}
-  .libcard .lh.talh{grid-template-columns:16px 1fr 70px 60px;}
-  .libtablehead.talh{grid-template-columns:16px 1fr 70px 60px;}
+
+  /* 今日/本周 rows: stop forcing desktop's 6-column grid into a narrow screen — instead,
+     content gets its own full-width line up top, checkbox/time/who/action sit together
+     on a second line below. Native drag-and-drop doesn't work on touchscreens anyway,
+     so the drag handle is hidden here rather than shown non-functional. */
+  .tablehead{display:none;}
+  .rowgrid{display:flex;flex-wrap:wrap;align-items:center;gap:5px 10px;}
+  .rowgrid .col-content{order:1;flex:1 1 100%;min-width:0;}
+  .rowgrid .chk{order:2;}
+  .rowgrid .col-time{order:3;font-size:11px;}
+  .rowgrid .col-who{order:4;font-size:11px;max-width:120px;}
+  .rowgrid .takeawaybtn{order:5;margin-left:auto;}
+  .rowgrid .draghandle{display:none;}
+  .rowgrid.simple{display:flex;}
+  .rowgrid.simple .col-content{order:1;flex:1 1 100%;}
+  .rowgrid.simple .chk{order:2;}
+  .rowgrid.simple .draghandle{display:none;}
+
+  /* 项目库/经验 card headers: same idea — title gets top billing on its own row,
+     the badges/meta wrap onto a second row underneath instead of being squeezed. */
+  .libtablehead{display:none;}
+  .libcard .lh{display:flex;flex-wrap:wrap;align-items:center;gap:5px 8px;cursor:pointer;}
+  .libcard .lh .car{order:1;}
+  .libcard .lh h3{order:2;flex:1 1 auto;min-width:60%;}
+  .libcard .lh .tag.cat-project,.libcard .lh .tag.cat-recurring{order:3;}
+  .libcard .lh .col-deadline{order:4;}
+  .libcard .lh .col-who-plain{order:5;font-size:11.5px;max-width:110px;}
+  .libcard .lh > .muted.mono{order:6;margin-left:auto;}
+  .libcard .lh.talh h3{min-width:50%;}
+
+  /* project/template step rows inside an expanded card */
+  .chain-item{flex-wrap:wrap;}
+  .chain-item .stxt{flex:1 1 100%;order:1;}
+  .chain-item .dot{order:2;}
+  .chain-item .stime{order:3;flex:0 1 auto;grid-template-columns:34px 68px 32px 30px 24px;gap:3px;font-size:9.5px;max-width:100%;}
+  .chain-item .stime .col-rec{max-width:68px;}
+  .chain-item .iconbtn{order:4;margin-left:auto;}
+
+  .modal{max-width:94vw!important;}
+  .inline{flex-wrap:wrap;}
+  .inline .field{flex:1 1 100%;min-width:0;}
 }
 </style>
+<link rel="manifest" id="pwaManifestLink">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="事项台账">
+<meta name="theme-color" content="#1b2430">
 </head>
 <body>
 <div id="app"></div>
@@ -272,7 +312,8 @@ const TEAM_DEEPSEEK_KEY = '';
 function defaultConfig(){
   return { aiProvider: TEAM_DEEPSEEK_KEY ? 'deepseek' : 'claude', deepseekKey: TEAM_DEEPSEEK_KEY,
     supabaseUrl: TEAM_SUPABASE_URL, supabaseAnonKey: TEAM_SUPABASE_ANON_KEY,
-    accessToken:'', refreshToken:'', userId:'', userEmail:'', tokenExpiry:0 };
+    accessToken:'', refreshToken:'', userId:'', userEmail:'', tokenExpiry:0,
+    remindersEnabled:false, defaultReminderTime:'09:00' };
 }
 function hasClaudeStorage(){
   try{ return typeof window.storage !== 'undefined' && window.storage !== null && typeof window.storage.get === 'function'; }
@@ -1392,12 +1433,12 @@ let dragState = { key:null };
 function wireStepDrag(item, stepsArr, key, persistKey){
   item.classList.add('stepdrag');
   item.draggable = true;
-  item.addEventListener('dragstart', (e)=>{ dragState.key = key; item.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', key); }catch(_){} });
-  item.addEventListener('dragend', ()=>{ item.classList.remove('dragging'); dragState.key=null; });
-  item.addEventListener('dragover', (e)=>{ e.preventDefault(); item.classList.add('dragover'); });
-  item.addEventListener('dragleave', ()=>{ item.classList.remove('dragover'); });
+  item.addEventListener('dragstart', (e)=>{ e.stopPropagation(); dragState.key = key; item.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', key); }catch(_){} });
+  item.addEventListener('dragend', (e)=>{ e.stopPropagation(); item.classList.remove('dragging'); dragState.key=null; });
+  item.addEventListener('dragover', (e)=>{ e.preventDefault(); e.stopPropagation(); item.classList.add('dragover'); });
+  item.addEventListener('dragleave', (e)=>{ e.stopPropagation(); item.classList.remove('dragover'); });
   item.addEventListener('drop', (e)=>{
-    e.preventDefault(); item.classList.remove('dragover');
+    e.preventDefault(); e.stopPropagation(); item.classList.remove('dragover');
     const fromKey = dragState.key;
     if(!fromKey || fromKey===key) return;
     const fromI = stepsArr.findIndex(s=>s.id===fromKey), toI = stepsArr.findIndex(s=>s.id===key);
@@ -2083,12 +2124,12 @@ function renderUnifiedProjects(){
 
   function wireLibDrag(card, key, sameCategoryItems){
     card.draggable = true;
-    card.addEventListener('dragstart', (e)=>{ dragState.key = key; card.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', key); }catch(_){} });
-    card.addEventListener('dragend', ()=>{ card.classList.remove('dragging'); dragState.key=null; });
-    card.addEventListener('dragover', (e)=>{ e.preventDefault(); card.classList.add('dragover'); });
-    card.addEventListener('dragleave', ()=>{ card.classList.remove('dragover'); });
+    card.addEventListener('dragstart', (e)=>{ e.stopPropagation(); dragState.key = key; card.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', key); }catch(_){} });
+    card.addEventListener('dragend', (e)=>{ e.stopPropagation(); card.classList.remove('dragging'); dragState.key=null; });
+    card.addEventListener('dragover', (e)=>{ e.preventDefault(); e.stopPropagation(); card.classList.add('dragover'); });
+    card.addEventListener('dragleave', (e)=>{ e.stopPropagation(); card.classList.remove('dragover'); });
     card.addEventListener('drop', (e)=>{
-      e.preventDefault(); card.classList.remove('dragover');
+      e.preventDefault(); e.stopPropagation(); card.classList.remove('dragover');
       const fromKey = dragState.key;
       if(!fromKey || fromKey===key) return;
       if(fromKey.split(':')[0] !== key.split(':')[0]) return; // keep reordering within the same category
@@ -2514,6 +2555,23 @@ function renderSettings(){
     </div>`;
   wrap.appendChild(aiBlock);
 
+  // Reminders
+  const remindBlock = el(`<div class="settingsblock"></div>`);
+  const notifSupported = typeof Notification !== 'undefined';
+  const notifPerm = notifSupported ? Notification.permission : 'unsupported';
+  remindBlock.innerHTML = `<h3>提醒</h3>
+    <div class="hint">开启后，只要这个网页还开着（哪怕切到了别的标签页，只要浏览器没关），到点了就会弹出一条系统通知。<b>如果把这个网页整个关掉、或者手机锁屏久了系统把浏览器完全杀后台，是收不到提醒的</b>——这是纯网页工具的天然限制，没有专门的推送服务器就做不到"网页关了也能提醒"。iOS Safari 网页本身不支持系统通知，苹果手机上这个开关基本用不了，安卓和电脑上的主流浏览器可以。</div>
+    <div class="segwrap">
+      <button class="segbtn ${S.config.remindersEnabled?'active':''}" id="remindOnBtn">开启提醒</button>
+      <button class="segbtn ${!S.config.remindersEnabled?'active':''}" id="remindOffBtn">关闭</button>
+    </div>
+    <div class="hint" id="notifPermHint" style="margin-top:6px;">${!notifSupported? '当前浏览器不支持系统通知。' : notifPerm==='denied' ? '之前拒绝过通知权限，需要去浏览器地址栏左侧的网站设置里手动改回"允许"，工具这边没法再弹一次请求。' : ''}</div>
+    <div class="field" style="margin-top:10px;"><label>没写具体时间的事项，统一在几点提醒</label>
+      <input type="time" id="defaultRemindTime" value="${S.config.defaultReminderTime||'09:00'}" style="max-width:160px;">
+      <div class="hint">"今日"里那些没设固定时间的事项（显示"/"的那些），会当成是这个时间点到期，统一在这个时间提醒一次；设了具体时间的事项还是按各自的时间点提醒。</div>
+    </div>`;
+  wrap.appendChild(remindBlock);
+
   // Cloud sync
   const cloudBlock = el(`<div class="settingsblock"></div>`);
   cloudBlock.innerHTML = `<h3>云端同步（Supabase）</h3>
@@ -2573,6 +2631,18 @@ create policy "own rows only" on app_data
     aiBlock.querySelectorAll('[data-aip]').forEach(b=>{ b.onclick=()=>{ S.config.aiProvider=b.dataset.aip; saveConfig(); render(); }; });
     const dsKeyInput = document.getElementById('dsKey');
     dsKeyInput.onchange = ()=>{ S.config.deepseekKey = dsKeyInput.value.trim(); saveConfig(); };
+
+    document.getElementById('remindOnBtn').onclick = ()=>{
+      if(typeof Notification==='undefined'){ showToast('当前浏览器不支持系统通知'); return; }
+      if(Notification.permission==='granted'){ S.config.remindersEnabled = true; saveConfig(); render(); return; }
+      Notification.requestPermission().then(perm=>{
+        if(perm==='granted'){ S.config.remindersEnabled = true; saveConfig(); new Notification('提醒已开启', {body:'到点会在这里弹通知，记得让这个网页保持开着'}); }
+        else showToast('没有获得通知权限，提醒开不了');
+        render();
+      });
+    };
+    document.getElementById('remindOffBtn').onclick = ()=>{ S.config.remindersEnabled = false; saveConfig(); render(); };
+    document.getElementById('defaultRemindTime').onchange = (e)=>{ S.config.defaultReminderTime = e.target.value || '09:00'; saveConfig(); };
 
     document.getElementById('sbSaveCfg').onclick = ()=>{
       S.config.supabaseUrl = document.getElementById('sbUrl').value.trim().replace(/\/$/,'');
@@ -2815,7 +2885,11 @@ async function aiParseDeepSeek(text){
       response_format:{type:"json_object"}
     })
   });
-  if(!resp.ok) throw new Error('DeepSeek 请求失败 '+resp.status);
+  if(!resp.ok){
+    if(resp.status===402) throw new Error('DeepSeek 账户余额不足，需要去 platform.deepseek.com 充值后才能用（这个是你自己的 DeepSeek 账户，跟这个工具本身无关）');
+    if(resp.status===401) throw new Error('DeepSeek Key 无效或已过期，去设置里重新填一下');
+    throw new Error('DeepSeek 请求失败 '+resp.status);
+  }
   const data = await resp.json();
   let raw = data.choices?.[0]?.message?.content || '';
   raw = raw.replace(/```json|```/g,'').trim();
@@ -2998,7 +3072,52 @@ function setupGlobalShortcuts(){
   });
 }
 
+/* ============ reminder engine ============ */
+// Only fires while this tab is open (no backend push service exists for this tool) — see the
+// hint text in Settings. Tracks which items were already notified today so it doesn't repeat.
+let remindedToday = { date:null, keys:new Set() };
+function checkReminders(){
+  if(!S.config.remindersEnabled) return;
+  if(typeof Notification==='undefined' || Notification.permission!=='granted') return;
+  const today = todayStr();
+  if(remindedToday.date !== today){ remindedToday = { date:today, keys:new Set() }; }
+  const now = new Date();
+  const curMin = now.getHours()*60 + now.getMinutes();
+  const defaultParts = (S.config.defaultReminderTime||'09:00').split(':').map(Number);
+  const defaultMin = (defaultParts[0]||0)*60 + (defaultParts[1]||0);
+  let rows;
+  try{ rows = buildRowsForDate(today).filter(r=>r.status!=='done'); }catch(e){ return; }
+  rows.forEach(r=>{
+    if(remindedToday.keys.has(r.key)) return;
+    let dueMin;
+    if(r.noTime || !r.time) dueMin = defaultMin;
+    else { const p = r.time.split(':').map(Number); dueMin = (p[0]||0)*60 + (p[1]||0); }
+    if(curMin>=dueMin && curMin<=dueMin+2){
+      remindedToday.keys.add(r.key);
+      try{ new Notification('事项台账提醒', { body:r.title, tag:r.key }); }catch(e){}
+    }
+  });
+}
+
 (async function boot(){
+  // Generate a simple icon + web manifest inline (no separate image files needed) so the
+  // page can be "added to home screen" on a phone and open more like a standalone app
+  // (no address bar) instead of just a bookmark. This does NOT make it a real app/小程序 —
+  // see the chat explanation — it's the closest a plain web page can get to that feel.
+  const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="34" fill="#1b2430"/><text x="96" y="128" font-size="104" text-anchor="middle" font-family="'Source Serif 4', Georgia, serif" fill="#f6f4ee">账</text></svg>`;
+  const iconUrl = 'data:image/svg+xml,'+encodeURIComponent(iconSvg);
+  const appleIconLink = document.createElement('link');
+  appleIconLink.rel = 'apple-touch-icon';
+  appleIconLink.href = iconUrl;
+  document.head.appendChild(appleIconLink);
+  const manifest = {
+    name:'事项台账 Work Ledger', short_name:'事项台账', start_url: location.pathname+location.search,
+    display:'standalone', background_color:'#f6f4ee', theme_color:'#1b2430',
+    icons:[{src:iconUrl, sizes:'192x192', type:'image/svg+xml'}]
+  };
+  const manifestLink = document.getElementById('pwaManifestLink');
+  if(manifestLink) manifestLink.href = 'data:application/manifest+json,'+encodeURIComponent(JSON.stringify(manifest));
+
   S.config = await loadConfig();
   if(cloudConfigured() && S.config.accessToken && Date.now() >= (S.config.tokenExpiry||0)){
     await tryRefreshToken();
@@ -3006,6 +3125,8 @@ function setupGlobalShortcuts(){
   await loadAll();
   render();
   setupGlobalShortcuts();
+  checkReminders();
+  setInterval(checkReminders, 30000);
 })();
 </script>
 </body>
