@@ -231,15 +231,20 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
   .weeknav{width:100%;margin-left:0;}
   .weekstrip{overflow-x:auto;width:100%;}
 
-  /* Native drag-and-drop doesn't work on touchscreens, so hide the (non-functional)
-     handle here rather than show something that doesn't respond to a tap. */
-  .rowgrid{grid-template-columns:52px 68px 1fr 28px 28px 16px;gap:6px;}
-  .rowgrid.simple{grid-template-columns:52px 1fr 28px 16px;gap:6px;}
-  .tablehead{grid-template-columns:52px 68px 1fr 28px 28px 16px;gap:6px;}
-  .tablehead.simple{grid-template-columns:52px 1fr 28px 16px;gap:6px;}
-  .rowgrid .col-time,.rowgrid .col-who{font-size:11px;}
-  .rowgrid .col-who{max-width:120px;}
-  .rowgrid .draghandle,.rowgrid.simple .draghandle{display:none;}
+  /* 今日/本周 rows on mobile: the single-row grid is too cramped on a narrow screen, so
+     here (and only here — desktop keeps its compact single-row grid) we switch to two
+     lines: content gets its own full-width line on top, the rest sits on a line below.
+     Native drag-and-drop doesn't work on touchscreens either, so the handle is hidden. */
+  .tablehead{display:none;}
+  .rowgrid{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;}
+  .rowgrid .col-content{order:1;flex:1 1 100%;min-width:0;}
+  .rowgrid .chk{order:2;}
+  .rowgrid .col-time{order:3;font-size:11px;}
+  .rowgrid .col-who{order:4;font-size:11px;max-width:110px;}
+  .rowgrid .takeawaybtn{order:5;margin-left:auto;}
+  .rowgrid .draghandle{display:none;}
+  .rowgrid.simple .col-content{order:1;flex:1 1 100%;}
+  .rowgrid.simple .chk{order:2;}
 
   /* 项目库/经验 card headers: same idea — title gets top billing on its own row,
      the badges/meta wrap onto a second row underneath instead of being squeezed. */
@@ -996,9 +1001,6 @@ function render(){
       </nav>
     </header>
     <div id="tabbody"></div>
-    <datalist id="globalStkList">${curatedStkOptions().map(o=>`<option value="${o}">`).join('')}</datalist>
-    <datalist id="globalProjList">${existingProjectNames().map(o=>`<option value="${o.replace(/"/g,'&quot;')}">`).join('')}</datalist>
-    <datalist id="globalTagList">${allTakeawayTags().map(o=>`<option value="${o.replace(/"/g,'&quot;')}">`).join('')}</datalist>
   `;
   document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{ ui.tab=b.dataset.tab; if(ui.tab==='today') ui.weekOffset=0; render(); });
   const body = document.getElementById('tabbody');
@@ -1021,6 +1023,38 @@ function stkArr(v){
 function stkLabel(v){ return stkArr(v).join('、'); }
 // Multi-select 需求方 input: shows current picks as removable chips, plus a text field
 // (with the curated-list datalist) to add more — type a name and press Enter, or blur, to add it.
+// Generic custom dropdown for a plain single-value input (not a multi-chip picker) — same
+// self-drawn, scrollable approach, reusable anywhere a native <datalist> was doing this job.
+function attachSuggestDropdown(inputEl, getOptions, onSelect){
+  let container = inputEl.parentElement;
+  if(!container || !container.classList.contains('suggestwrap')){
+    const w = document.createElement('span');
+    w.className = 'suggestwrap';
+    w.style.cssText = 'position:relative;display:block;';
+    if(inputEl.style.flex) w.style.flex = inputEl.style.flex;
+    inputEl.replaceWith(w);
+    w.appendChild(inputEl);
+    container = w;
+  }
+  const dd = document.createElement('div');
+  dd.className = 'customdd';
+  dd.style.display = 'none';
+  container.appendChild(dd);
+  function renderOptions(){
+    const q = inputEl.value.trim().toLowerCase();
+    const options = getOptions().filter(o=> !q || o.toLowerCase().includes(q));
+    if(!options.length){ dd.style.display='none'; return; }
+    dd.innerHTML = options.map(o=>`<div class="ddopt" data-opt="${o.replace(/"/g,'&quot;')}">${o}</div>`).join('');
+    dd.style.display = 'block';
+    dd.querySelectorAll('[data-opt]').forEach(optEl=>{
+      optEl.addEventListener('mousedown', (e)=>{ e.preventDefault(); dd.style.display='none'; onSelect(optEl.dataset.opt); });
+    });
+  }
+  inputEl.addEventListener('input', renderOptions);
+  inputEl.addEventListener('focus', renderOptions);
+  inputEl.addEventListener('keydown', (e)=>{ if(e.key==='Escape') dd.style.display='none'; });
+  inputEl.addEventListener('blur', ()=>{ setTimeout(()=>{ dd.style.display='none'; }, 150); });
+}
 function renderStakeholderPicker(initial, onChange){
   const arr = stkArr(initial);
   const wrap = el(`<div class="stkpicker" style="position:relative;"></div>`);
@@ -1329,7 +1363,7 @@ function renderAdhocRow(r, movable, simple){
     const recWrap = el(`<div></div>`); box.appendChild(recWrap);
     const recPicker = renderRecurrencePicker(inst.repeat||null, ()=>{}, false);
     recWrap.appendChild(recPicker);
-    const projInp = el(`<input type="text" list="globalProjList" placeholder="所属项目（可选，库里已有的项目/周期事项名会自动关联，没有的话可手动输入新名字）" style="padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);">`);
+    const projInp = el(`<input type="text" placeholder="所属项目（可选，库里已有的项目/周期事项名会自动关联，没有的话可手动输入新名字）" style="padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);width:100%;" autocomplete="off">`);
     box.appendChild(projInp);
     const createProjWrap = el(`<label class="checkline" style="display:none;"><input type="checkbox" checked> 项目库中没有这个名字，勾选则创建为新项目</label>`);
     box.appendChild(createProjWrap);
@@ -1338,6 +1372,7 @@ function renderAdhocRow(r, movable, simple){
       const matched = matchProjectByName(projInp.value);
       createProjWrap.style.display = (!matched && projInp.value.trim()) ? 'flex' : 'none';
     };
+    attachSuggestDropdown(projInp, existingProjectNames, (val)=>{ projInp.value = val; projInp.oninput(); });
     const btnRow = el(`<div class="btnrow" style="justify-content:flex-start;">
       <button class="btn ghost sm" data-cancel>取消</button>
       <button class="btn ghost sm" data-del style="color:var(--danger);">删除</button>
@@ -1528,7 +1563,7 @@ function openQuickAddConfirm(title){
     <div class="field"><label>日期/时间</label><div id="qcDtWrap"></div></div>
     <div class="field"><label>是否循环</label><div id="qcRecWrap"></div></div>
     <div class="field"><label>所属项目（可选，库里已有的项目/周期事项名会自动关联；没有的话可以直接手动输入新名字）</label>
-      <input type="text" list="globalProjList" id="qcProject" placeholder="不填则作为普通日常事项">
+      <input type="text" id="qcProject" placeholder="不填则作为普通日常事项" autocomplete="off">
     </div>
     <div class="checkline" id="qcCreateProjWrap" style="display:none;">
       <label><input type="checkbox" id="qcCreateProj" checked> 项目库中没有这个名字，勾选则创建为新项目</label>
@@ -1551,6 +1586,7 @@ function openQuickAddConfirm(title){
     const matched = matchProjectByName(qcProjectInp.value);
     qcCreateWrap.style.display = (!matched && qcProjectInp.value.trim()) ? 'flex' : 'none';
   };
+  attachSuggestDropdown(qcProjectInp, existingProjectNames, (val)=>{ qcProjectInp.value = val; qcProjectInp.oninput(); });
   overlay.querySelector('#qcCancel').onclick = ()=>overlay.remove();
   overlay.querySelector('#qcSave').onclick = ()=>{
     const finalTitle = titleInp.value.trim();
@@ -1851,25 +1887,43 @@ function repeatLabel(rec){
 // all tags ever used across takeaway entries, and supports true append (not replace).
 function renderTagPicker(initial, onChange){
   const arr = Array.isArray(initial) ? initial.filter(Boolean) : (typeof initial==='string' ? initial.split(',').map(s=>s.trim()).filter(Boolean) : []);
-  const wrap = el(`<div class="stkpicker"></div>`);
+  const wrap = el(`<div class="stkpicker" style="position:relative;"></div>`);
   function paint(focusInput){
     wrap.innerHTML = `
       <div class="stkchips">${arr.map((s,i)=>`<span class="chip sm" data-rm="${i}">${s}<button type="button">✕</button></span>`).join('')}</div>
-      <input type="text" list="globalTagList" placeholder="输入标签，回车可加多个">
+      <input type="text" placeholder="输入标签，回车可加多个" autocomplete="off">
+      <div class="customdd" style="display:none;"></div>
     `;
     wrap.querySelectorAll('[data-rm]').forEach(c=>{
       c.querySelector('button').onclick = ()=>{ arr.splice(+c.dataset.rm,1); paint(); if(onChange) onChange([...arr]); };
     });
     const inp = wrap.querySelector('input');
-    const commit = ()=>{
-      const v = inp.value.trim();
+    const dd = wrap.querySelector('.customdd');
+    const commit = (val)=>{
+      const v = (val!==undefined ? val : inp.value).trim();
       if(v && !arr.includes(v)) arr.push(v);
       inp.value='';
+      dd.style.display='none';
       paint(true);
       if(onChange) onChange([...arr]);
     };
-    inp.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); commit(); } };
-    inp.onblur = ()=>{ if(inp.value.trim()) commit(); };
+    function renderOptions(){
+      const q = inp.value.trim().toLowerCase();
+      const options = allTakeawayTags().filter(o=>!arr.includes(o) && (!q || o.toLowerCase().includes(q)));
+      if(!options.length){ dd.style.display='none'; return; }
+      dd.innerHTML = options.map(o=>`<div class="ddopt" data-opt="${o.replace(/"/g,'&quot;')}">${o}</div>`).join('');
+      dd.style.display='block';
+      dd.querySelectorAll('[data-opt]').forEach(optEl=>{
+        optEl.addEventListener('mousedown', (e)=>{ e.preventDefault(); commit(optEl.dataset.opt); });
+      });
+    }
+    inp.oninput = renderOptions;
+    inp.onfocus = renderOptions;
+    inp.onkeydown = (e)=>{
+      if(e.key==='Enter'){ e.preventDefault(); commit(); }
+      else if(e.key==='Escape'){ dd.style.display='none'; }
+    };
+    inp.onblur = ()=>{ setTimeout(()=>{ if(inp.value.trim()) commit(); else dd.style.display='none'; }, 120); };
     if(focusInput) inp.focus();
   }
   paint(false);
@@ -1976,8 +2030,7 @@ function renderTakeawaysTab(){
     <button class="btn primary sm" id="addFreeTakeawayBtn" style="margin-left:auto;">+ 新增经验</button>
   </div>
   <div class="filterbar">
-    <input type="text" id="taTagFilter" list="taTagDatalist" placeholder="按标签筛选，支持搜索（共 ${all.length} 条经验 · ${Object.keys(bySource).length} 个来源）" value="${(ui.taTagFilter||'').replace(/"/g,'&quot;')}" style="max-width:280px;padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
-    <datalist id="taTagDatalist">${[...tagSet].map(t=>`<option value="${t}">`).join('')}</datalist>
+    <input type="text" id="taTagFilter" placeholder="按标签筛选，支持搜索（共 ${all.length} 条经验 · ${Object.keys(bySource).length} 个来源）" value="${(ui.taTagFilter||'').replace(/"/g,'&quot;')}" style="max-width:280px;padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--card);" autocomplete="off">
     ${ui.taTagFilter? `<button class="btn ghost sm" id="taTagClear">✕ 清除标签筛选</button>`:''}
     <input type="text" id="taSearch" placeholder="搜索经验内容..." value="${(ui.taSearch||'').replace(/"/g,'&quot;')}" style="flex:1;max-width:280px;padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
   </div>
@@ -2128,7 +2181,9 @@ function renderTakeawaysTab(){
     wrap.querySelectorAll('[data-taview]').forEach(b=>{
       b.onclick = ()=>{ ui.taView = b.dataset.taview; render(); };
     });
-    document.getElementById('taTagFilter').onchange = e=>{ ui.taTagFilter = e.target.value.trim(); render(); };
+    const taTagFilterInp = document.getElementById('taTagFilter');
+    attachSuggestDropdown(taTagFilterInp, ()=>[...tagSet], (val)=>{ ui.taTagFilter = val; render(); });
+    taTagFilterInp.onkeydown = (e)=>{ if(e.key==='Enter'){ ui.taTagFilter = e.target.value.trim(); render(); } };
     const clearBtn = document.getElementById('taTagClear');
     if(clearBtn) clearBtn.onclick = ()=>{ ui.taTagFilter=''; render(); };
     document.getElementById('taSearch').oninput = e=>{ ui.taSearch = e.target.value; refresh(); };
@@ -3205,7 +3260,7 @@ function renderConfirmModal(){
         <label style="margin-left:12px;"><input type="checkbox" data-f="addToDropdown" data-i="${i}"> 需求方加入常用下拉</label>
       </div>
       <div class="field" style="margin-top:8px;"><label>所属项目（可选，库里已有的项目/周期事项名会自动关联；没有的话可以直接手动输入新名字）</label>
-        <input type="text" list="globalProjList" value="${(d.projectText||'').replace(/"/g,'&quot;')}" data-f="projectText" data-i="${i}" placeholder="不填则作为普通日常事项">
+        <input type="text" value="${(d.projectText||'').replace(/"/g,'&quot;')}" data-f="projectText" data-i="${i}" placeholder="不填则作为普通日常事项" autocomplete="off">
       </div>
       ${matchedLinkTo? `<div class="hint">🔗 将归档为 ${linkedLabel} 下的一个检查点，同时会出现在「项目」页对应条目里。</div>` : ''}
       ${willCreateProject? `<div class="hint">将作为「项目」列表中的新项目创建（项目名：${(d.projectText||d.title)}），之后可以继续添加步骤。</div>` : ''}
@@ -3226,6 +3281,13 @@ function renderConfirmModal(){
       ui.pendingCards[i][f] = inp.type==='checkbox'? inp.checked : inp.value;
       if(f==='noTime' || f==='projectText' || f==='category'){ renderConfirmModal(); }
     };
+  });
+  overlay.querySelectorAll('[data-f="projectText"]').forEach(inp=>{
+    attachSuggestDropdown(inp, existingProjectNames, (val)=>{
+      const i = +inp.dataset.i;
+      ui.pendingCards[i].projectText = val;
+      renderConfirmModal();
+    });
   });
   overlay.querySelector('#cfCancel').onclick = ()=>overlay.remove();
   overlay.querySelector('#cfSaveAll').onclick = ()=>{
