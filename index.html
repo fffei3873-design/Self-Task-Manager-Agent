@@ -139,17 +139,16 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
 .toast{position:fixed;bottom:96px;right:26px;background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;font-size:13px;z-index:200;box-shadow:var(--shadow);max-width:300px;}
 
 .libcard{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);}
-.libcard .lh{display:grid;grid-template-columns:18px 64px 130px 1fr 76px;align-items:center;gap:6px;cursor:pointer;}
+.libcard .lh{display:grid;grid-template-columns:18px 64px 130px 1fr 76px 30px;align-items:center;gap:6px;cursor:pointer;}
+.quickdone{width:24px;height:24px;border-radius:50%;border:1.4px solid var(--line);background:var(--card);color:var(--muted);font-size:13px;line-height:1;cursor:pointer;transition:.12s;justify-self:end;}
+.quickdone:hover{border-color:var(--jade);color:var(--jade);background:var(--jade-soft);}
+.quickdone.done{border-color:var(--jade);color:var(--jade);background:var(--jade-soft);}
 .libcard .lh.talh{grid-template-columns:18px 1fr 100px 90px;}
-.col-deadline{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden;white-space:nowrap;}
 .talh .tag, .talh button{justify-self:end;}
 .talh .muted{justify-self:end;}
 .libcard .lh h3{font-size:14.5px;}
 .libcard .lh .car{transition:.15s;color:var(--muted);}
 .libcard.open .lh .car{transform:rotate(90deg);}
-.libtablehead{display:grid;grid-template-columns:18px 1fr 150px 88px 130px 76px;gap:10px;padding:0 16px 6px;}
-.libtablehead.talh{grid-template-columns:18px 1fr 100px 90px;}
-.libtablehead span{font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:.3px;text-transform:uppercase;}
 .col-who-plain{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .libcard .detail{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);}
 .libcard.open .detail{display:block;}
@@ -165,6 +164,10 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
 .stkchips:empty{display:none;}
 .stkpicker input{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);font:inherit;}
 .chip.sm{padding:3px 7px;font-size:11.5px;}
+.customdd{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--card);border:1px solid var(--line);border-radius:9px;box-shadow:var(--shadow);z-index:60;max-height:200px;overflow-y:auto;}
+.customdd .ddopt{padding:8px 11px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--line-soft);}
+.customdd .ddopt:last-child{border-bottom:none;}
+.customdd .ddopt:hover{background:var(--paper-dim);}
 .addline{display:flex;gap:6px;margin-top:8px;}
 .addline input{flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:7px;}
 
@@ -212,8 +215,6 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
 .quickaddbar{display:flex;gap:8px;margin:14px 0 4px;}
 .quickaddbar input{flex:1;padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:var(--card);font-size:13.5px;box-shadow:var(--shadow);}
 .quickaddbar input:focus{outline:none;border-color:var(--ink-soft);}
-.quickaddbar #quickAddAI{flex:0 0 auto;white-space:nowrap;font-size:12px;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:0 14px;}
-.quickaddbar #quickAddAI:hover{color:var(--ink);border-color:var(--ink-soft);}
 
 .row{transition:box-shadow .12s, border-color .12s;}
 .row:hover{border-color:var(--line);box-shadow:0 2px 6px rgba(27,36,48,.08), 0 1px 2px rgba(27,36,48,.06);}
@@ -224,37 +225,31 @@ nav.tabs button.active{background:var(--ink);color:var(--paper);}
 
 @media (max-width:640px){
   header.top{flex-direction:column;align-items:stretch;gap:10px;}
+  .brand{flex-wrap:wrap;align-items:flex-start;}
+  .brand h1{white-space:nowrap;}
   nav.tabs{overflow-x:auto;}
   .weeknav{width:100%;margin-left:0;}
   .weekstrip{overflow-x:auto;width:100%;}
 
-  /* 今日/本周 rows: stop forcing desktop's 6-column grid into a narrow screen — instead,
-     content gets its own full-width line up top, checkbox/time/who/action sit together
-     on a second line below. Native drag-and-drop doesn't work on touchscreens anyway,
-     so the drag handle is hidden here rather than shown non-functional. */
-  .tablehead{display:none;}
-  .rowgrid{display:flex;flex-wrap:wrap;align-items:center;gap:5px 10px;}
-  .rowgrid .col-content{order:1;flex:1 1 100%;min-width:0;}
-  .rowgrid .chk{order:2;}
-  .rowgrid .col-time{order:3;font-size:11px;}
-  .rowgrid .col-who{order:4;font-size:11px;max-width:120px;}
-  .rowgrid .takeawaybtn{order:5;margin-left:auto;}
-  .rowgrid .draghandle{display:none;}
-  .rowgrid.simple{display:flex;}
-  .rowgrid.simple .col-content{order:1;flex:1 1 100%;}
-  .rowgrid.simple .chk{order:2;}
-  .rowgrid.simple .draghandle{display:none;}
+  /* Native drag-and-drop doesn't work on touchscreens, so hide the (non-functional)
+     handle here rather than show something that doesn't respond to a tap. */
+  .rowgrid{grid-template-columns:52px 68px 1fr 28px 28px 16px;gap:6px;}
+  .rowgrid.simple{grid-template-columns:52px 1fr 28px 16px;gap:6px;}
+  .tablehead{grid-template-columns:52px 68px 1fr 28px 28px 16px;gap:6px;}
+  .tablehead.simple{grid-template-columns:52px 1fr 28px 16px;gap:6px;}
+  .rowgrid .col-time,.rowgrid .col-who{font-size:11px;}
+  .rowgrid .col-who{max-width:120px;}
+  .rowgrid .draghandle,.rowgrid.simple .draghandle{display:none;}
 
   /* 项目库/经验 card headers: same idea — title gets top billing on its own row,
      the badges/meta wrap onto a second row underneath instead of being squeezed. */
-  .libtablehead{display:none;}
   .libcard .lh{display:flex;flex-wrap:wrap;align-items:center;gap:5px 8px;cursor:pointer;}
   .libcard .lh .car{order:1;}
   .libcard .lh h3{order:2;flex:1 1 auto;min-width:60%;}
-  .libcard .lh .tag.cat-project,.libcard .lh .tag.cat-recurring{order:3;}
-  .libcard .lh .col-deadline{order:4;}
+  .libcard .lh .tag.cat-project,.libcard .lh .tag.cat-recurring,.libcard .lh .tag.cat-adhoc,.libcard .lh .col-type{order:3;min-width:56px;}
   .libcard .lh .col-who-plain{order:5;font-size:11.5px;max-width:110px;}
   .libcard .lh > .muted.mono{order:6;margin-left:auto;}
+  .libcard .lh .quickdone,.libcard .lh .quickdone-slot{order:7;}
   .libcard .lh.talh h3{min-width:50%;}
 
   /* project/template step rows inside an expanded card */
@@ -972,6 +967,23 @@ function applyWhoFilter(rows){ if(!ui.whoFilter) return rows; return rows.filter
 
 /* ============ render shell ============ */
 function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
+// Clicking the dark backdrop (not the modal box itself) closes/cancels the overlay.
+function closeOverlayOnOutsideClick(overlay){
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) overlay.remove(); });
+}
+// Clicking anywhere outside an inline edit form (a row/card in its editing state) cancels
+// that edit, same as clicking its own "取消" button would. Deferred by a tick so the very
+// click that opened the edit form doesn't immediately close it again.
+function wireOutsideClickCancel(container, onCancel){
+  const handler = (e)=>{
+    if(!container.isConnected){ document.removeEventListener('click', handler, true); return; }
+    if(!container.contains(e.target)){
+      document.removeEventListener('click', handler, true);
+      onCancel();
+    }
+  };
+  setTimeout(()=>{ document.addEventListener('click', handler, true); }, 0);
+}
 
 function render(){
   ensureCyclesGenerated();
@@ -1011,25 +1023,44 @@ function stkLabel(v){ return stkArr(v).join('、'); }
 // (with the curated-list datalist) to add more — type a name and press Enter, or blur, to add it.
 function renderStakeholderPicker(initial, onChange){
   const arr = stkArr(initial);
-  const wrap = el(`<div class="stkpicker"></div>`);
+  const wrap = el(`<div class="stkpicker" style="position:relative;"></div>`);
   function paint(focusInput){
     wrap.innerHTML = `
       <div class="stkchips">${arr.map((s,i)=>`<span class="chip sm" data-rm="${i}">${s}<button type="button">✕</button></span>`).join('')}</div>
-      <input type="text" list="globalStkList" placeholder="输入需求方，回车可加多个">
+      <input type="text" placeholder="输入需求方，回车可加多个" autocomplete="off">
+      <div class="customdd" style="display:none;"></div>
     `;
     wrap.querySelectorAll('[data-rm]').forEach(c=>{
       c.querySelector('button').onclick = ()=>{ arr.splice(+c.dataset.rm,1); paint(); if(onChange) onChange([...arr]); };
     });
     const inp = wrap.querySelector('input');
-    const commit = ()=>{
-      const v = inp.value.trim();
+    const dd = wrap.querySelector('.customdd');
+    const commit = (val)=>{
+      const v = (val!==undefined ? val : inp.value).trim();
       if(v && !arr.includes(v)) arr.push(v);
       inp.value='';
+      dd.style.display='none';
       paint(true);
       if(onChange) onChange([...arr]);
     };
-    inp.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); commit(); } };
-    inp.onblur = ()=>{ if(inp.value.trim()) commit(); };
+    function renderOptions(){
+      const q = inp.value.trim().toLowerCase();
+      const options = curatedStkOptions().filter(o=>!arr.includes(o) && (!q || o.toLowerCase().includes(q)));
+      if(!options.length){ dd.style.display='none'; return; }
+      dd.innerHTML = options.map(o=>`<div class="ddopt" data-opt="${o.replace(/"/g,'&quot;')}">${o}</div>`).join('');
+      dd.style.display='block';
+      dd.querySelectorAll('[data-opt]').forEach(optEl=>{
+        // mousedown (not click) + preventDefault so the input never blurs before we read its value
+        optEl.addEventListener('mousedown', (e)=>{ e.preventDefault(); commit(optEl.dataset.opt); });
+      });
+    }
+    inp.oninput = renderOptions;
+    inp.onfocus = renderOptions;
+    inp.onkeydown = (e)=>{
+      if(e.key==='Enter'){ e.preventDefault(); commit(); }
+      else if(e.key==='Escape'){ dd.style.display='none'; }
+    };
+    inp.onblur = ()=>{ setTimeout(()=>{ if(inp.value.trim()) commit(); else dd.style.display='none'; }, 120); };
     if(focusInput) inp.focus();
   }
   paint(false);
@@ -1101,7 +1132,6 @@ function renderToday(){
   const simple = ui.todayView==='simple';
   wrap.innerHTML = `<div class="quickaddbar">
     <input type="text" id="quickAddInput" placeholder="快速添加一条待办，回车自动 AI 解析…">
-    <button class="iconbtn" id="quickAddAI" title="打开完整录入框（支持语音、一次拆多条、更细致地关联项目/识别时间）">✨ 完整录入</button>
   </div>
   <div class="filterbar" style="margin-bottom:2px;">
     <div class="newmenu">
@@ -1128,7 +1158,6 @@ function renderToday(){
         triggerQuickAI(title);
       }
     };
-    document.getElementById('quickAddAI').onclick = ()=> openCapture(qaInput.value.trim());
   },0);
   return wrap;
 }
@@ -1316,6 +1345,7 @@ function renderAdhocRow(r, movable, simple){
     </div>`);
     box.appendChild(btnRow);
     btnRow.querySelector('[data-cancel]').onclick = ()=>{ ui.openCards[editKey]=false; render(); };
+    wireOutsideClickCancel(row, ()=>{ ui.openCards[editKey]=false; render(); });
     btnRow.querySelector('[data-del]').onclick = ()=>{
       if(confirm('确定删除这个事项吗？')){ S.instances = S.instances.filter(x=>x.id!==inst.id); persist('instances'); render(); }
     };
@@ -1506,6 +1536,7 @@ function openQuickAddConfirm(title){
     <div class="btnrow"><button class="btn ghost" id="qcCancel">取消</button><button class="btn primary" id="qcSave">添加</button></div>
   </div>`;
   document.body.appendChild(overlay);
+  closeOverlayOnOutsideClick(overlay);
   const qcWho = renderStakeholderPicker('');
   overlay.querySelector('#qcWhoWrap').appendChild(qcWho);
   const dtPicker = renderDateTimePicker({date:todayStr(), time:'', noTime:true}, ()=>{});
@@ -1577,6 +1608,7 @@ function openTakeawayQuickAdd(onSave, contextLabel){
     <div class="btnrow"><button class="btn ghost" id="qaCancel">取消</button><button class="btn jade" id="qaSave">保存</button></div>
   </div>`;
   document.body.appendChild(overlay);
+  closeOverlayOnOutsideClick(overlay);
   const qaTags = renderTagPicker([]);
   overlay.querySelector('#qaTagsWrap').appendChild(qaTags);
   overlay.querySelector('#qaCancel').onclick = ()=>overlay.remove();
@@ -1654,6 +1686,7 @@ function renderCheckpointItem(st, opts){
     </div>`);
     item.appendChild(btnRow);
     btnRow.querySelector('[data-cancel]').onclick = ()=>{ ui.openCards[editKey]=false; render(); };
+    wireOutsideClickCancel(outer, ()=>{ ui.openCards[editKey]=false; render(); });
     if(opts.onDelete) btnRow.querySelector('[data-del]').onclick = ()=>{
       if(confirm('确定删除这个检查点吗？')){ ui.openCards[editKey]=false; opts.onDelete(); }
     };
@@ -1725,6 +1758,7 @@ function renderTemplateStepItem(t, st, opts){
     </div>`);
     item.appendChild(btnRow);
     btnRow.querySelector('[data-cancel]').onclick = ()=>{ ui.openCards[editKey]=false; render(); };
+    wireOutsideClickCancel(outer, ()=>{ ui.openCards[editKey]=false; render(); });
     btnRow.querySelector('[data-del]').onclick = ()=>{
       if(confirm('确定删除这个步骤吗？')){ ui.openCards[editKey]=false; opts.onDelete(); }
     };
@@ -1915,6 +1949,7 @@ function openFreeTakeawayForm(){
     <div class="btnrow"><button class="btn ghost" id="ftCancel">取消</button><button class="btn jade" id="ftSave">保存</button></div>
   </div>`;
   document.body.appendChild(overlay);
+  closeOverlayOnOutsideClick(overlay);
   const ftTags = renderTagPicker([]);
   overlay.querySelector('#ftTagsWrap').appendChild(ftTags);
   overlay.querySelector('#ftCancel').onclick = ()=>overlay.remove();
@@ -2008,7 +2043,7 @@ function renderTakeawaysTab(){
       card.innerHTML = `
         <div class="lh talh">
           <span class="car">▸</span><h3>${g.label}</h3>
-          ${g.kind==='source'? `<span class="tag ${sourceCls}">${g.sourceKind}</span>` : `<span></span>`}
+          ${g.kind==='source'? `<span class="tag ${sourceCls}">${g.sourceKind}</span>` : `<span class="col-type"></span>`}
           <span class="muted mono" style="font-size:11px;text-align:right;">${g.entries.length} 条经验</span>
         </div>
         <div class="detail">
@@ -2057,6 +2092,23 @@ function renderTakeawaysTab(){
         paintView();
         detail.appendChild(item);
       });
+      const taExportWrap = el(`<div style="margin-top:10px;"></div>`);
+      detail.appendChild(taExportWrap);
+      attachExportMenu(taExportWrap, ()=>({
+        title: g.label,
+        metaLines: [],
+        rows: g.entries.map(e=>({
+          content: e.content,
+          meta: (e.tags||[]).join('、') + (g.kind!=='source' ? (e.tags&&e.tags.length?'　·　':'')+e.source : ''),
+          date: new Date(e.createdAt).toLocaleDateString('zh-CN')
+        })),
+        rowNoun: '经验记录',
+        columns: [
+          {label:'内容', get:r=>r.content},
+          {label:'标签/来源', get:r=>r.meta},
+          {label:'日期', get:r=>r.date}
+        ]
+      }));
       card.querySelector('.lh').onclick = ()=>{
         ui.openCards[openKey] = !ui.openCards[openKey];
         card.classList.toggle('open', ui.openCards[openKey]);
@@ -2087,11 +2139,17 @@ function renderTakeawaysTab(){
 }
 
 /* ============ unified 项目 tab (projects + recurring templates) ============ */
+function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function highlightText(text, keyword){
+  if(!keyword) return text;
+  const re = new RegExp('('+escapeRegExp(keyword)+')', 'ig');
+  return text.replace(re, '<mark style="background:#fde68a;color:inherit;padding:0 1px;border-radius:2px;">$1</mark>');
+}
 function renderUnifiedProjects(){
   const wrap = el(`<div></div>`);
   wrap.innerHTML = `<div class="filterbar">
       <span class="daypill">项目制与周期性事项统一管理</span>
-      <input type="text" id="libSearchInput" placeholder="搜索项目/周期事项名称..." value="${(ui.libSearch||'').replace(/"/g,'&quot;')}" style="flex:1;max-width:260px;padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
+      <input type="text" id="libSearchInput" placeholder="搜索项目/周期事项名称或步骤内容..." value="${(ui.libSearch||'').replace(/"/g,'&quot;')}" style="flex:1;max-width:280px;padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--card);">
       <div class="newmenu" style="margin-left:auto;">
         <button class="btn primary sm" id="newLibBtn">+ 新建</button>
         <div class="popover" id="newLibPop" style="display:none;">
@@ -2102,7 +2160,6 @@ function renderUnifiedProjects(){
     </div>
     <div id="libGroups"></div>`;
   const groupsContainer = wrap.querySelector('#libGroups');
-  const search = (ui.libSearch||'').trim().toLowerCase();
 
   function orderIndex(key){ const i=(S.libOrder||[]).indexOf(key); return i===-1?Infinity:i; }
   function sortByOrder(items){
@@ -2112,17 +2169,25 @@ function renderUnifiedProjects(){
       return b.createdAt - a.createdAt;
     });
   }
-
-  let projectItems = S.projects.map(p=>({kind:'project', key:'project:'+p.id, createdAt:p.createdAt, ref:p, name:p.name}));
-  let recurringItems = S.templates.map(t=>({kind:'recurring', key:'recurring:'+t.id, createdAt:t.createdAt, ref:t, name:t.name}));
-  if(search){
-    projectItems = projectItems.filter(it=>it.name.toLowerCase().includes(search));
-    recurringItems = recurringItems.filter(it=>it.name.toLowerCase().includes(search));
+  function matchesSearch(it, search){
+    if(it.name.toLowerCase().includes(search)) return true;
+    return (it.ref.steps||[]).some(st=>(st.content||'').toLowerCase().includes(search));
   }
-  projectItems = sortByOrder(projectItems);
-  recurringItems = sortByOrder(recurringItems);
+  function highlightCard(card, openKey, it, search){
+    if(!search) return;
+    const titleMatches = it.name.toLowerCase().includes(search);
+    const h3 = card.querySelector('.lh h3');
+    if(h3 && titleMatches) h3.innerHTML = highlightText(h3.textContent, search);
+    let stepMatched = false;
+    card.querySelectorAll('.stxt').forEach(stxt=>{
+      if(stxt.textContent.toLowerCase().includes(search)){ stxt.innerHTML = highlightText(stxt.textContent, search); stepMatched = true; }
+    });
+    // if only a step (not the title) matched, auto-expand the card so the highlighted
+    // step is actually visible instead of hidden behind a collapsed section.
+    if(stepMatched && !titleMatches && !ui.openCards[openKey]){ ui.openCards[openKey] = true; card.classList.add('open'); }
+  }
 
-  function wireLibDrag(card, key, sameCategoryItems){
+  function wireLibDrag(card, key, sameCategoryItems, allItems){
     card.draggable = true;
     card.addEventListener('dragstart', (e)=>{ e.stopPropagation(); dragState.key = key; card.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', key); }catch(_){} });
     card.addEventListener('dragend', (e)=>{ e.stopPropagation(); card.classList.remove('dragging'); dragState.key=null; });
@@ -2140,30 +2205,62 @@ function renderUnifiedProjects(){
       const others = (S.libOrder||[]).filter(k=>!sameCategoryItems.some(it=>it.key===k));
       S.libOrder = [...others, ...order].filter((k,i,arr)=>arr.indexOf(k)===i);
       // fold in any keys not yet tracked, preserving current visual order overall
-      const allVisible = [...projectItems, ...recurringItems].map(it=>it.key);
-      allVisible.forEach(k=>{ if(!S.libOrder.includes(k)) S.libOrder.push(k); });
+      allItems.forEach(k=>{ if(!S.libOrder.includes(k)) S.libOrder.push(k); });
       persist('libOrder'); render();
     });
   }
 
-  if(!projectItems.length && !recurringItems.length){
-    groupsContainer.appendChild(el(`<div class="empty"><b>${search?'没有匹配的项目/周期事项':'这里还是空的'}</b>${search?'换个关键词试试':'点右上角"+新建"，创建一个项目或周期事项。'}</div>`));
-  } else {
+  function refreshList(){
+    groupsContainer.innerHTML = '';
+    const search = (ui.libSearch||'').trim().toLowerCase();
+    let projectItems = S.projects.map(p=>({kind:'project', key:'project:'+p.id, createdAt:p.createdAt, ref:p, name:p.name}));
+    let recurringItems = S.templates.map(t=>({kind:'recurring', key:'recurring:'+t.id, createdAt:t.createdAt, ref:t, name:t.name}));
+    if(search){
+      projectItems = projectItems.filter(it=>matchesSearch(it, search));
+      recurringItems = recurringItems.filter(it=>matchesSearch(it, search));
+    }
+    projectItems = sortByOrder(projectItems);
+    recurringItems = sortByOrder(recurringItems);
+    const allVisibleKeys = [...projectItems, ...recurringItems].map(it=>it.key);
+
+    if(!projectItems.length && !recurringItems.length){
+      groupsContainer.appendChild(el(`<div class="empty"><b>${search?'没有匹配的项目/周期事项':'这里还是空的'}</b>${search?'换个关键词试试':'点右上角"+新建"，创建一个项目或周期事项。'}</div>`));
+      return;
+    }
     groupsContainer.appendChild(el(`<div class="muted" style="font-size:12px;font-weight:600;margin:4px 2px 6px;letter-spacing:.2px;">项目制</div>`));
     if(!projectItems.length) groupsContainer.appendChild(el(`<div class="empty" style="padding:14px;">${search?'没有匹配的项目':'还没有项目'}</div>`));
-    projectItems.forEach(it=>{
+    const activeProjectItems = projectItems.filter(it=>it.ref.status!=='已结束');
+    const doneProjectItems = projectItems.filter(it=>it.ref.status==='已结束');
+    if(projectItems.length){
+      groupsContainer.appendChild(el(`<div class="muted" style="font-size:11px;margin:0 2px 4px;">进行中${activeProjectItems.length?' · '+activeProjectItems.length:''}</div>`));
+      if(!activeProjectItems.length) groupsContainer.appendChild(el(`<div class="empty" style="padding:10px 14px;font-size:12.5px;">没有进行中的项目</div>`));
+    }
+    activeProjectItems.forEach(it=>{
       const card = renderProjectCard(it.ref);
-      if(!search) wireLibDrag(card, it.key, projectItems);
+      if(search) setTimeout(()=> highlightCard(card, 'pj_'+it.ref.id, it, search), 0);
+      if(!search) wireLibDrag(card, it.key, activeProjectItems, allVisibleKeys);
       groupsContainer.appendChild(card);
     });
+    if(doneProjectItems.length){
+      groupsContainer.appendChild(el(`<div class="muted" style="font-size:11px;margin:10px 2px 4px;">已完成 · ${doneProjectItems.length}</div>`));
+      doneProjectItems.forEach(it=>{
+        const card = renderProjectCard(it.ref);
+        if(search) setTimeout(()=> highlightCard(card, 'pj_'+it.ref.id, it, search), 0);
+        if(!search) wireLibDrag(card, it.key, doneProjectItems, allVisibleKeys);
+        groupsContainer.appendChild(card);
+      });
+    }
     groupsContainer.appendChild(el(`<div class="muted" style="font-size:12px;font-weight:600;margin:16px 2px 6px;letter-spacing:.2px;">周期性事项</div>`));
     if(!recurringItems.length) groupsContainer.appendChild(el(`<div class="empty" style="padding:14px;">${search?'没有匹配的周期事项':'还没有周期性事项'}</div>`));
     recurringItems.forEach(it=>{
       const card = renderRecurringCard(it.ref);
-      if(!search) wireLibDrag(card, it.key, recurringItems);
+      if(search) setTimeout(()=> highlightCard(card, 'tp_'+it.ref.id, it, search), 0);
+      if(!search) wireLibDrag(card, it.key, recurringItems, allVisibleKeys);
       groupsContainer.appendChild(card);
     });
   }
+  refreshList();
+
   setTimeout(()=>{
     const btn = document.getElementById('newLibBtn'), pop = document.getElementById('newLibPop');
     btn.onclick = (e)=>{ e.stopPropagation(); pop.style.display = pop.style.display==='none'?'block':'none'; };
@@ -2171,11 +2268,85 @@ function renderUnifiedProjects(){
       b.onclick = ()=>{ pop.style.display='none'; if(b.dataset.choice==='project') openProjectForm(); else openTemplateForm(); };
     });
     document.addEventListener('click', ()=>{ if(pop) pop.style.display='none'; }, {once:true});
-    document.getElementById('libSearchInput').oninput = (e)=>{ ui.libSearch = e.target.value; render(); };
+    document.getElementById('libSearchInput').oninput = (e)=>{ ui.libSearch = e.target.value; refreshList(); };
   },0);
   return wrap;
 }
 
+/* ============ single-card export (Markdown / Word / 表格) ============ */
+function downloadFile(filename, content, mimeType){
+  const blob = new Blob([content], {type: mimeType});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+function csvEscape(v){
+  const s = String(v==null?'':v);
+  return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+// title + optional meta lines + a list of {done, content, meta, note} rows -> markdown text
+function buildMarkdown(title, metaLines, rows, rowNoun){
+  let md = `# ${title}\n\n`;
+  metaLines.forEach(l=>{ if(l) md += `- ${l}\n`; });
+  md += `\n## ${rowNoun}\n\n`;
+  if(!rows.length) md += `（暂无）\n`;
+  rows.forEach(r=>{
+    md += `- ${r.done!==undefined? (r.done?'[x]':'[ ]')+' ' : ''}${r.content}`;
+    if(r.meta) md += `　*${r.meta}*`;
+    md += `\n`;
+    if(r.note) md += `  > ${r.note}\n`;
+  });
+  return md;
+}
+function buildWordDoc(title, metaLines, rows, rowNoun){
+  let body = `<h1>${title}</h1>`;
+  if(metaLines.filter(Boolean).length) body += `<p>${metaLines.filter(Boolean).join('　|　')}</p>`;
+  body += `<h2>${rowNoun}</h2>`;
+  if(!rows.length) body += `<p>（暂无）</p>`;
+  else {
+    body += `<ul>`;
+    rows.forEach(r=>{
+      const mark = r.done!==undefined ? (r.done?'☑ ':'☐ ') : '';
+      body += `<li>${mark}${r.content}${r.meta?` <i>(${r.meta})</i>`:''}${r.note?`<br><span style="color:#666;">备注：${r.note}</span>`:''}</li>`;
+    });
+    body += `</ul>`;
+  }
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+  <head><meta charset="utf-8"><title>${title}</title></head>
+  <body style="font-family:'Source Serif 4',Georgia,serif;">${body}</body></html>`;
+}
+function buildCSV(rows, columns){
+  const lines = [columns.map(c=>csvEscape(c.label)).join(',')];
+  rows.forEach(r=> lines.push(columns.map(c=>csvEscape(c.get(r))).join(',')));
+  return '\uFEFF'+lines.join('\r\n'); // BOM so Excel opens Chinese text correctly
+}
+function exportEntity(kind, title, metaLines, rows, rowNoun, columns){
+  const safeTitle = title.replace(/[\\/:*?"<>|]/g,'_');
+  if(kind==='md') downloadFile(`${safeTitle}.md`, buildMarkdown(title, metaLines, rows, rowNoun), 'text/markdown;charset=utf-8');
+  else if(kind==='word') downloadFile(`${safeTitle}.doc`, buildWordDoc(title, metaLines, rows, rowNoun), 'application/msword;charset=utf-8');
+  else if(kind==='csv') downloadFile(`${safeTitle}.csv`, buildCSV(rows, columns), 'text/csv;charset=utf-8');
+}
+function attachExportMenu(container, getData){
+  const wrap = el(`<div class="newmenu" style="position:relative;display:inline-block;"></div>`);
+  wrap.innerHTML = `<button class="btn ghost sm" data-exportbtn>导出 ⌄</button>
+    <div class="popover" data-exportpop style="display:none;">
+      <button data-exp="md">导出为 Markdown</button>
+      <button data-exp="word">导出为 Word</button>
+      <button data-exp="csv">导出为表格 (CSV)</button>
+    </div>`;
+  container.appendChild(wrap);
+  const btn = wrap.querySelector('[data-exportbtn]'), pop = wrap.querySelector('[data-exportpop]');
+  btn.onclick = (e)=>{ e.stopPropagation(); pop.style.display = pop.style.display==='none'?'block':'none'; };
+  pop.querySelectorAll('[data-exp]').forEach(b=>{
+    b.onclick = (e)=>{
+      e.stopPropagation(); pop.style.display='none';
+      const {title, metaLines, rows, rowNoun, columns} = getData();
+      exportEntity(b.dataset.exp, title, metaLines, rows, rowNoun, columns);
+    };
+  });
+  document.addEventListener('click', ()=>{ pop.style.display='none'; }, {once:true});
+  return wrap;
+}
 function renderProjectCard(p){
   const open = !!ui.openCards['pj_'+p.id];
   const editingMeta = !!ui.openCards['editprojmeta_'+p.id];
@@ -2191,20 +2362,20 @@ function renderProjectCard(p){
         <div class="btnrow" style="justify-content:flex-start;margin-top:0;">
           <button class="btn ghost sm" data-metacancel>取消</button>
           <button class="btn primary sm" data-metasave>保存</button>
-          <button class="btn ghost sm" data-endproj="${p.id}">${p.status==='已结束'?'重新激活':'标记为已结束'}</button>
+          <button class="btn ghost sm" data-endproj="${p.id}">${p.status==='已结束'?'移回进行中':'标记为已完成'}</button>
           <button class="btn ghost sm" data-delproj="${p.id}" style="color:var(--danger);">删除项目</button>
         </div>
       </div>
     </div>` : `
     <div class="lh" data-toggle="pj_${p.id}">
       <span class="car">▸</span>
-      <span style="display:flex;align-items:center;gap:4px;overflow:hidden;">
+      <span class="col-type" style="display:flex;align-items:center;gap:4px;overflow:hidden;">
         <span class="tag cat-project">项目制</span>
-        ${p.status==='已结束'?'<span class="tag" style="background:var(--paper-dim);color:var(--muted);">已结束</span>':''}
       </span>
       <span class="col-who-plain" data-clickmeta="1" style="cursor:text;">${stkLabel(p.stakeholder)||'+ 需求方'}</span>
       <h3 data-clickmeta="1" style="cursor:text;">${p.name}</h3>
       <span class="muted mono" style="font-size:11px;text-align:right;">${doneCount}/${(p.steps||[]).length} 步骤</span>
+      <button class="quickdone ${p.status==='已结束'?'done':''}" data-quickdone="${p.id}" title="${p.status==='已结束'?'点击移回进行中':'点击标记为已完成'}">${p.status==='已结束'?'↺':'✓'}</button>
     </div>`;
   card.innerHTML = lhHtml + `
     <div class="detail">
@@ -2218,22 +2389,44 @@ function renderProjectCard(p){
         <button class="btn ghost sm" data-hideaddstep="${p.id}">收起</button>
       </div>` : `
       <button class="btn ghost sm" data-showaddstep="${p.id}" style="margin-top:10px;">+ 新增步骤/检查点</button>`}
+      <div id="pjExportWrap_${p.id}" style="margin-top:10px;"></div>
     </div>`;
   let pendingStepRec = null;
   let pendingStepDt = { date:'', time:'', noTime:false };
   setTimeout(()=>{
     if(!editingMeta){
       card.querySelector('.lh').onclick = (e)=>{
-        if(e.target.closest('[data-clickmeta]')) return;
+        if(e.target.closest('[data-clickmeta]') || e.target.closest('[data-quickdone]')) return;
         ui.openCards['pj_'+p.id]=!ui.openCards['pj_'+p.id]; render();
       };
       card.querySelectorAll('[data-clickmeta]').forEach(elm=>{
         elm.onclick = (e)=>{ e.stopPropagation(); ui.openCards['editprojmeta_'+p.id]=true; render(); };
       });
+      card.querySelector('[data-quickdone]').onclick = (e)=>{
+        e.stopPropagation();
+        p.status = p.status==='已结束'?'进行中':'已结束';
+        persist('projects'); render();
+      };
+      attachExportMenu(card.querySelector(`#pjExportWrap_${p.id}`), ()=>({
+        title: p.name,
+        metaLines: [stkLabel(p.stakeholder)?`需求方：${stkLabel(p.stakeholder)}`:'', `状态：${p.status==='已结束'?'已完成':'进行中'}`],
+        rows: (p.steps||[]).map(st=>({
+          done: st.status==='done',
+          content: st.content,
+          meta: st.repeat ? repeatLabel(st.repeat) : (st.date ? `${st.date}${st.noTime?'':' '+(st.time||'')}` : ''),
+        })),
+        rowNoun: '步骤',
+        columns: [
+          {label:'内容', get:r=>r.content},
+          {label:'完成', get:r=>r.done?'是':'否'},
+          {label:'时间/循环规则', get:r=>r.meta}
+        ]
+      }));
     } else {
       const peWho = renderStakeholderPicker(p.stakeholder);
       card.querySelector(`#peWhoWrap_${p.id}`).appendChild(peWho);
       card.querySelector('[data-metacancel]').onclick = ()=>{ ui.openCards['editprojmeta_'+p.id]=false; render(); };
+      wireOutsideClickCancel(card, ()=>{ ui.openCards['editprojmeta_'+p.id]=false; render(); });
       card.querySelector('[data-metasave]').onclick = ()=>{
         const name = card.querySelector('.peName').value.trim();
         if(!name){ alert('项目名称不能为空'); return; }
@@ -2256,6 +2449,7 @@ function renderProjectCard(p){
       const recPicker = renderRecurrencePicker(null, (rec)=>{ pendingStepRec = rec; }, false);
       card.querySelector(`#newstepRecWrap_${p.id}`).appendChild(recPicker);
       card.querySelector(`[data-hideaddstep="${p.id}"]`).onclick = ()=>{ ui.openCards['addstep_pj_'+p.id]=false; render(); };
+      wireOutsideClickCancel(card, ()=>{ ui.openCards['addstep_pj_'+p.id]=false; render(); });
     } else {
       card.querySelector(`[data-showaddstep="${p.id}"]`).onclick = ()=>{ ui.openCards['addstep_pj_'+p.id]=true; render(); };
     }
@@ -2334,6 +2528,7 @@ function renderRecurringCard(t){
       <span class="col-who-plain" data-clickmeta="1" style="cursor:text;">${stkLabel(t.stakeholder)||'+ 需求方'}</span>
       <h3 data-clickmeta="1" style="cursor:text;">${t.name}</h3>
       <span class="muted mono" style="font-size:11px;text-align:right;">${t.steps.length} 步骤</span>
+      <span class="quickdone-slot"></span>
     </div>`;
   card.innerHTML = lhHtml + `
     <div class="detail">
@@ -2347,6 +2542,7 @@ function renderRecurringCard(t){
         <button class="btn ghost sm" data-hideaddstep="${t.id}">收起</button>
       </div>` : `
       <button class="btn ghost sm" data-showaddstep="${t.id}" style="margin-top:10px;">+ 新增步骤</button>`}
+      <div id="tpExportWrap_${t.id}" style="margin-top:10px;"></div>
     </div>`;
   setTimeout(()=>{
     if(!editingMeta){
@@ -2357,10 +2553,24 @@ function renderRecurringCard(t){
       card.querySelectorAll('[data-clickmeta]').forEach(elm=>{
         elm.onclick = (e)=>{ e.stopPropagation(); ui.openCards['edittplmeta_'+t.id]=true; render(); };
       });
+      attachExportMenu(card.querySelector(`#tpExportWrap_${t.id}`), ()=>({
+        title: t.name,
+        metaLines: [stkLabel(t.stakeholder)?`需求方：${stkLabel(t.stakeholder)}`:''],
+        rows: t.steps.map(st=>({
+          content: st.content,
+          meta: st.repeat ? repeatLabel(st.repeat) : '未设置循环规则',
+        })),
+        rowNoun: '步骤',
+        columns: [
+          {label:'内容', get:r=>r.content},
+          {label:'循环规则', get:r=>r.meta}
+        ]
+      }));
     } else {
       const teWho = renderStakeholderPicker(t.stakeholder);
       card.querySelector(`#teWhoWrap_${t.id}`).appendChild(teWho);
       card.querySelector('[data-metacancel]').onclick = ()=>{ ui.openCards['edittplmeta_'+t.id]=false; render(); };
+      wireOutsideClickCancel(card, ()=>{ ui.openCards['edittplmeta_'+t.id]=false; render(); });
       card.querySelector('[data-metasave]').onclick = ()=>{
         const name = card.querySelector('.teName').value.trim();
         if(!name){ alert('事项名称不能为空'); return; }
@@ -2411,6 +2621,7 @@ function renderRecurringCard(t){
         persist('templates'); render();
       };
       card.querySelector(`[data-hideaddstep="${t.id}"]`).onclick = ()=>{ ui.openCards['addstep_tp_'+t.id]=false; render(); };
+      wireOutsideClickCancel(card, ()=>{ ui.openCards['addstep_tp_'+t.id]=false; render(); });
     } else {
       card.querySelector(`[data-showaddstep="${t.id}"]`).onclick = ()=>{ ui.openCards['addstep_tp_'+t.id]=true; render(); };
     }
@@ -2428,6 +2639,7 @@ function openProjectForm(existing){
     <div class="btnrow"><button class="btn ghost" id="pCancel">取消</button><button class="btn primary" id="pSave">${existing?'保存':'创建'}</button></div>
   </div>`;
   document.body.appendChild(overlay);
+  closeOverlayOnOutsideClick(overlay);
   const pWho = renderStakeholderPicker(existing?existing.stakeholder:'');
   overlay.querySelector('#pWhoWrap').appendChild(pWho);
   if(!existing){
@@ -2472,6 +2684,7 @@ function renderTemplateModal(draft, editId){
     <div class="btnrow"><button class="btn ghost" id="tCancel">取消</button><button class="btn primary" id="tSave">${editId?'保存':'创建'}</button></div>
   </div>`;
   document.body.appendChild(overlay);
+  closeOverlayOnOutsideClick(overlay);
   const tWho = renderStakeholderPicker(draft.stakeholder);
   overlay.querySelector('#tWhoWrap').appendChild(tWho);
   if(!editId){
@@ -2776,6 +2989,7 @@ function openCapture(prefill){
     <div id="capStatus" style="margin-top:10px;font-size:12.5px;color:var(--muted);"></div>
   </div>`;
   document.body.appendChild(overlay);
+  closeOverlayOnOutsideClick(overlay);
   attachVoice(overlay.querySelector('#micBtn'), overlay.querySelector('#capText'));
   const capTextEl = overlay.querySelector('#capText');
   capTextEl.focus(); capTextEl.setSelectionRange(capTextEl.value.length, capTextEl.value.length);
@@ -2963,6 +3177,7 @@ function renderConfirmModal(){
     <div class="btnrow"><button class="btn ghost" id="cfCancel">全部取消</button><button class="btn primary" id="cfSaveAll">确认全部入库</button></div>
   </div>`;
   document.body.appendChild(overlay);
+  closeOverlayOnOutsideClick(overlay);
   const cw = overlay.querySelector('#cardsWrap');
   ui.pendingCards.forEach((d,i)=>{
     const card = el(`<div class="cardsplit"></div>`);
