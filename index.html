@@ -526,6 +526,11 @@ async function loadAll(){
   const cyclesChanged = migrateCyclesToFlatSteps();
   if(templatesChanged) await persist('templates');
   if(cyclesChanged) await persist('cycles');
+  // Fixes existing data from before individual step edits properly cleaned up their own
+  // stale future occurrences (e.g. a step moved from "every 2nd of the month" to "every
+  // 1st" used to leave old every-2nd rows sitting in S.cycles forever). Past/done rows are
+  // never touched — only future, not-yet-done rows that no longer match the current rule.
+  if(pruneStaleCycles()) await persist('cycles');
 }
 // Old shape: t.recurrence (shared) + step.offsetDays (relative to the shared anchor).
 // New shape: each step carries its own independent step.repeat rule.
@@ -880,6 +885,36 @@ function renderRecurrencePicker(initialRec, onChange, startOpen){
 // S.cycles now holds one row per (template step, occurrence date) — flat, not bundled by a
 // shared anchor — since different steps in the same 周期事项 can run on entirely different
 // schedules (weekly / monthly / yearly) that have nothing to do with each other.
+// Whenever a step's own repeat rule/time/content changes (or the step is deleted), any
+// already-generated FUTURE occurrences in S.cycles were built under the *old* rule and
+// don't get retroactively fixed by ensureCyclesGenerated (which only ever adds missing
+// occurrences, never removes stale ones). Past and already-completed occurrences are left
+// alone so history isn't rewritten; ensureCyclesGenerated regenerates fresh future rows
+// matching the new rule on the very next render.
+function purgeFutureCyclesForStep(templateId, stepDefId){
+  const today = todayStr();
+  S.cycles = S.cycles.filter(c=> !(c.templateId===templateId && c.stepDefId===stepDefId && c.date>=today && c.status!=='done'));
+}
+function pruneStaleCycles(){
+  const today = todayStr();
+  const windowStart = addDays(new Date(), -21), windowEnd = addDays(new Date(), 60);
+  const validSets = {};
+  S.templates.forEach(t=>{
+    (t.steps||[]).forEach(st=>{
+      if(!st.repeat) return;
+      validSets[t.id+':'+st.id] = new Set(generateAnchorsInWindow(st.repeat, windowStart, windowEnd));
+    });
+  });
+  let changed = false;
+  S.cycles = S.cycles.filter(c=>{
+    if(c.date < today || c.status==='done') return true; // never rewrite past or completed history
+    if(c.stepDefId===null || c.stepDefId===undefined) return true; // loose, one-off additions aren't governed by any step rule
+    const validSet = validSets[c.templateId+':'+c.stepDefId];
+    if(!validSet || !validSet.has(c.date)){ changed = true; return false; }
+    return true;
+  });
+  return changed;
+}
 function ensureCyclesGenerated(){
   const today = new Date();
   const windowStart = addDays(today, -21);
@@ -951,22 +986,37 @@ function buildRowsForDate(dateStr){
 function diffDays(dateStr, refStr){ const a=parseDate(dateStr), b=parseDate(refStr); return Math.max(0, Math.round((b-a)/86400000)); }
 
 function sortRows(rows, isToday){
-  const timed = rows.filter(r=>r.time && !r.noTime);
-  const untimed = rows.filter(r=>!r.time || r.noTime);
-  timed.sort((a,b)=> timeToMin(a.time)-timeToMin(b.time));
-  untimed.sort((a,b)=> a.createdAt-b.createdAt);
-  let ordered = [...timed, ...untimed];
-  if(isToday && S.todayOrder.date===todayStr() && S.todayOrder.order.length){
-    const orderMap = {}; S.todayOrder.order.forEach((k,i)=>orderMap[k]=i);
-    ordered = ordered.slice().sort((a,b)=>{
-      const ia = orderMap[a.key], ib = orderMap[b.key];
-      if(ia!==undefined && ib!==undefined) return ia-ib;
-      if(ia!==undefined) return -1;
-      if(ib!==undefined) return 1;
-      return 0;
+  const hasManualOrder = isToday && S.todayOrder.date===todayStr() && S.todayOrder.order.length;
+  const orderMap = {};
+  if(hasManualOrder) S.todayOrder.order.forEach((k,i)=>orderMap[k]=i);
+  function autoSort(group){
+    const timed = group.filter(r=>r.time && !r.noTime);
+    const untimed = group.filter(r=>!r.time || r.noTime);
+    timed.sort((a,b)=> timeToMin(a.time)-timeToMin(b.time));
+    // untimed: items not filed under any project/periodic item come first, so your own
+    // loose to-dos aren't buried under library-tracked steps; ties broken by creation order.
+    untimed.sort((a,b)=>{
+      const aLib = a.kind!=='adhoc', bLib = b.kind!=='adhoc';
+      if(aLib!==bLib) return aLib?1:-1;
+      return a.createdAt-b.createdAt;
     });
+    return [...timed, ...untimed];
   }
-  return ordered;
+  function withManualOrder(group){
+    if(!hasManualOrder) return autoSort(group);
+    // Respect manual drag order for items that have one; anything new/unordered keeps its
+    // place via the auto-sort rules, merged in relative to its nearest ordered neighbors.
+    const known = group.filter(r=>orderMap[r.key]!==undefined).sort((a,b)=>orderMap[a.key]-orderMap[b.key]);
+    const unknown = autoSort(group.filter(r=>orderMap[r.key]===undefined));
+    if(!unknown.length) return known;
+    if(!known.length) return unknown;
+    return [...known, ...unknown];
+  }
+  const notDone = rows.filter(r=>r.status!=='done');
+  const done = rows.filter(r=>r.status==='done');
+  // Completed items always sit below active ones, regardless of manual drag order — that's
+  // the whole point of the rule (keep today's active list uncluttered by what's finished).
+  return [...withManualOrder(notDone), ...withManualOrder(done)];
 }
 function applyWhoFilter(rows){ if(!ui.whoFilter) return rows; return rows.filter(r=> stkArr(r.stakeholder).includes(ui.whoFilter)); }
 
@@ -1999,6 +2049,7 @@ function openFreeTakeawayForm(){
   overlay.innerHTML = `<div class="modal" style="max-width:420px;">
     <h2>新增经验</h2>
     <div class="field"><label>内容</label><textarea id="ftText" placeholder="不挂靠任何具体事项，单纯记一笔想法/经验/坑..."></textarea></div>
+    <div class="field"><label>关联项目（可选，库里已有的项目/周期事项名会自动关联；留空则作为不挂靠任何项目的自由记录）</label><input type="text" id="ftProject" placeholder="不填则作为自由记录" autocomplete="off"></div>
     <div class="field"><label>标签（可选，也可以当类别用，方便和其他经验一起归到同一类下）</label><div id="ftTagsWrap"></div></div>
     <div class="btnrow"><button class="btn ghost" id="ftCancel">取消</button><button class="btn jade" id="ftSave">保存</button></div>
   </div>`;
@@ -2006,13 +2057,34 @@ function openFreeTakeawayForm(){
   closeOverlayOnOutsideClick(overlay);
   const ftTags = renderTagPicker([]);
   overlay.querySelector('#ftTagsWrap').appendChild(ftTags);
+  const ftProjectInp = overlay.querySelector('#ftProject');
+  attachSuggestDropdown(ftProjectInp, existingProjectNames, (val)=>{ ftProjectInp.value = val; });
   overlay.querySelector('#ftCancel').onclick = ()=>overlay.remove();
   overlay.querySelector('#ftSave').onclick = ()=>{
     const content = overlay.querySelector('#ftText').value.trim();
     if(!content){ alert('内容不能为空'); return; }
-    S.freeTakeaways = S.freeTakeaways||[];
-    S.freeTakeaways.push({id:uid(), content, tags:ftTags.getValue(), createdAt:Date.now()});
-    persist('freeTakeaways');
+    const tags = ftTags.getValue();
+    const matched = matchProjectByName(ftProjectInp.value);
+    if(matched){
+      // Linked to an existing project/periodic item as a general note (no specific step) —
+      // it still shows up correctly grouped under that project's card in 经验, since grouping
+      // there is keyed by source id, not by whether a stepId is set.
+      const [kind, id] = matched.split(':');
+      const entry = {id:uid(), content, tags, stepId:null, stepLabel:null, createdAt:Date.now()};
+      if(kind==='project'){
+        const p = S.projects.find(x=>x.id===id);
+        p.takeaways = p.takeaways||[]; p.takeaways.push(entry);
+        persist('projects');
+      } else {
+        const t = S.templates.find(x=>x.id===id);
+        t.takeaways = t.takeaways||[]; t.takeaways.push(entry);
+        persist('templates');
+      }
+    } else {
+      S.freeTakeaways = S.freeTakeaways||[];
+      S.freeTakeaways.push({id:uid(), content, tags, createdAt:Date.now()});
+      persist('freeTakeaways');
+    }
     overlay.remove(); render();
   };
 }
@@ -2649,10 +2721,11 @@ function renderRecurringCard(t){
         takeawayList: t.takeaways,
         takeawayStepId: st.id,
         persistKey: 'templates',
-        onDelete: ()=>{ t.steps = t.steps.filter(s=>s.id!==st.id); persist('templates'); render(); },
+        onDelete: ()=>{ t.steps = t.steps.filter(s=>s.id!==st.id); purgeFutureCyclesForStep(t.id, st.id); persist('templates'); persist('cycles'); render(); },
         onSave: ({content, time, noTime, repeat})=>{
           st.content = content; st.time = time; st.noTime = noTime; st.repeat = repeat;
-          persist('templates'); render();
+          purgeFutureCyclesForStep(t.id, st.id);
+          persist('templates'); persist('cycles'); render();
         }
       });
       wireStepDrag(item, t.steps, st.id, 'templates');
@@ -2797,7 +2870,10 @@ function renderTemplateModal(draft, editId){
     if(editId){
       const t = S.templates.find(x=>x.id===editId);
       t.name=name; t.stakeholder=stakeholder;
+      const oldStepIds = t.steps.map(s=>s.id);
       t.steps = draft.steps.map(s=>({id:s.id||uid(), content:s.content, time:s.time, noTime:s.noTime, reminder:s.reminder, repeat:s.repeat}));
+      oldStepIds.forEach(sid=> purgeFutureCyclesForStep(t.id, sid));
+      persist('cycles');
     } else {
       S.templates.push({ id:uid(), name, stakeholder, steps:[], takeaways:[], createdAt:Date.now() });
     }
@@ -2828,12 +2904,12 @@ function renderSettings(){
   const notifSupported = typeof Notification !== 'undefined';
   const notifPerm = notifSupported ? Notification.permission : 'unsupported';
   remindBlock.innerHTML = `<h3>提醒</h3>
-    <div class="hint">开启后，只要这个网页还开着（哪怕切到了别的标签页，只要浏览器没关），到点了就会弹出一条系统通知。<b>如果把这个网页整个关掉、或者手机锁屏久了系统把浏览器完全杀后台，是收不到提醒的</b>——这是纯网页工具的天然限制，没有专门的推送服务器就做不到"网页关了也能提醒"。iOS Safari 网页本身不支持系统通知，苹果手机上这个开关基本用不了，安卓和电脑上的主流浏览器可以。</div>
+    <div class="hint">开启后，只要这个网页还开着（哪怕切到了别的标签页，只要浏览器没关），到点了会弹出一个<b>页面内的提醒弹窗</b>（列出到点的事项，可以直接在弹窗里打勾完成），同时浏览器标签页标题会闪烁提示。如果浏览器支持，还会<b>额外</b>尝试弹一条系统通知（这个不一定所有设备都支持，比如 iPhone 上的 Safari 就不支持系统通知，但弹窗这个是稳定生效的，不受这个限制）。<b>唯一的前提是这个网页得开着</b>——如果把网页整个关掉、或者手机锁屏久了系统把浏览器完全杀后台，是收不到任何提醒的，这是纯网页工具的天然限制，没有专门的推送服务器就做不到"网页关了也能提醒"。</div>
     <div class="segwrap">
       <button class="segbtn ${S.config.remindersEnabled?'active':''}" id="remindOnBtn">开启提醒</button>
       <button class="segbtn ${!S.config.remindersEnabled?'active':''}" id="remindOffBtn">关闭</button>
     </div>
-    <div class="hint" id="notifPermHint" style="margin-top:6px;">${!notifSupported? '当前浏览器不支持系统通知。' : notifPerm==='denied' ? '之前拒绝过通知权限，需要去浏览器地址栏左侧的网站设置里手动改回"允许"，工具这边没法再弹一次请求。' : ''}</div>
+    <div class="hint" id="notifPermHint" style="margin-top:6px;">${!notifSupported? '（当前浏览器不支持额外的系统通知，但页面内弹窗提醒不受影响，正常生效）' : notifPerm==='denied' ? '（之前拒绝过系统通知权限，需要去浏览器地址栏左侧的网站设置里手动改回"允许"才能收到额外的系统通知；页面内弹窗提醒不受影响，正常生效）' : ''}</div>
     <div class="field" style="margin-top:10px;"><label>没写具体时间的事项，统一在几点提醒</label>
       <input type="time" id="defaultRemindTime" value="${S.config.defaultReminderTime||'09:00'}" style="max-width:160px;">
       <div class="hint">"今日"里那些没设固定时间的事项（显示"/"的那些），会当成是这个时间点到期，统一在这个时间提醒一次；设了具体时间的事项还是按各自的时间点提醒。</div>
@@ -2901,13 +2977,11 @@ create policy "own rows only" on app_data
     dsKeyInput.onchange = ()=>{ S.config.deepseekKey = dsKeyInput.value.trim(); saveConfig(); };
 
     document.getElementById('remindOnBtn').onclick = ()=>{
-      if(typeof Notification==='undefined'){ showToast('当前浏览器不支持系统通知'); return; }
-      if(Notification.permission==='granted'){ S.config.remindersEnabled = true; saveConfig(); render(); return; }
-      Notification.requestPermission().then(perm=>{
-        if(perm==='granted'){ S.config.remindersEnabled = true; saveConfig(); new Notification('提醒已开启', {body:'到点会在这里弹通知，记得让这个网页保持开着'}); }
-        else showToast('没有获得通知权限，提醒开不了');
-        render();
-      });
+      S.config.remindersEnabled = true; saveConfig(); render();
+      showToast('提醒已开启：到点会在页面里弹窗提示');
+      if(typeof Notification!=='undefined' && Notification.permission!=='denied'){
+        Notification.requestPermission(); // best-effort bonus; popup already works either way
+      }
     };
     document.getElementById('remindOffBtn').onclick = ()=>{ S.config.remindersEnabled = false; saveConfig(); render(); };
     document.getElementById('defaultRemindTime').onchange = (e)=>{ S.config.defaultReminderTime = e.target.value || '09:00'; saveConfig(); };
@@ -3353,9 +3427,59 @@ function setupGlobalShortcuts(){
 // Only fires while this tab is open (no backend push service exists for this tool) — see the
 // hint text in Settings. Tracks which items were already notified today so it doesn't repeat.
 let remindedToday = { date:null, keys:new Set() };
+let reminderPopupItems = []; // items currently queued/shown in the reminder popup
+let reminderTitleFlashTimer = null;
+const baseDocTitle = document.title;
+function startTitleFlash(){
+  if(reminderTitleFlashTimer) return;
+  let on = false;
+  reminderTitleFlashTimer = setInterval(()=>{
+    document.title = on ? baseDocTitle : `🔔 有到点事项 · ${baseDocTitle}`;
+    on = !on;
+  }, 1200);
+}
+function stopTitleFlash(){
+  if(reminderTitleFlashTimer){ clearInterval(reminderTitleFlashTimer); reminderTitleFlashTimer = null; }
+  document.title = baseDocTitle;
+}
+function showReminderPopup(newItems){
+  const existing = document.getElementById('reminderOverlay');
+  newItems.forEach(it=>{ if(!reminderPopupItems.some(x=>x.key===it.key)) reminderPopupItems.push(it); });
+  if(existing){ renderReminderPopupBody(existing); return; }
+  const overlay = el(`<div class="overlay" id="reminderOverlay" style="z-index:200;"></div>`);
+  overlay.innerHTML = `<div class="modal" style="max-width:420px;">
+    <h2>⏰ 到点提醒</h2>
+    <div id="reminderList"></div>
+    <div class="btnrow"><button class="btn primary" id="reminderDismiss">知道了</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  renderReminderPopupBody(overlay);
+  overlay.querySelector('#reminderDismiss').onclick = ()=>{ reminderPopupItems=[]; overlay.remove(); stopTitleFlash(); };
+  startTitleFlash();
+}
+function renderReminderPopupBody(overlay){
+  const list = overlay.querySelector('#reminderList');
+  list.innerHTML = reminderPopupItems.map(it=>`
+    <div class="checkline" style="padding:8px 0;border-bottom:1px solid var(--line-soft);">
+      <label style="flex:1;display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" data-donekey="${it.key}">
+        <span>${it.noTime?'':it.time+' · '}${it.title}</span>
+      </label>
+    </div>`).join('') || `<p class="muted">（已全部处理）</p>`;
+  list.querySelectorAll('[data-donekey]').forEach(chk=>{
+    chk.onchange = ()=>{
+      if(!chk.checked) return;
+      const key = chk.dataset.donekey;
+      const row = buildRowsForDate(todayStr()).find(r=>r.key===key);
+      if(row) toggleRow(row);
+      reminderPopupItems = reminderPopupItems.filter(it=>it.key!==key);
+      if(!reminderPopupItems.length){ overlay.remove(); stopTitleFlash(); }
+      else renderReminderPopupBody(overlay);
+    };
+  });
+}
 function checkReminders(){
   if(!S.config.remindersEnabled) return;
-  if(typeof Notification==='undefined' || Notification.permission!=='granted') return;
   const today = todayStr();
   if(remindedToday.date !== today){ remindedToday = { date:today, keys:new Set() }; }
   const now = new Date();
@@ -3364,6 +3488,7 @@ function checkReminders(){
   const defaultMin = (defaultParts[0]||0)*60 + (defaultParts[1]||0);
   let rows;
   try{ rows = buildRowsForDate(today).filter(r=>r.status!=='done'); }catch(e){ return; }
+  const dueNow = [];
   rows.forEach(r=>{
     if(remindedToday.keys.has(r.key)) return;
     let dueMin;
@@ -3371,9 +3496,13 @@ function checkReminders(){
     else { const p = r.time.split(':').map(Number); dueMin = (p[0]||0)*60 + (p[1]||0); }
     if(curMin>=dueMin && curMin<=dueMin+2){
       remindedToday.keys.add(r.key);
-      try{ new Notification('事项台账提醒', { body:r.title, tag:r.key }); }catch(e){}
+      dueNow.push(r);
+      if(typeof Notification!=='undefined' && Notification.permission==='granted'){
+        try{ new Notification('事项台账提醒', { body:r.title, tag:r.key }); }catch(e){}
+      }
     }
   });
+  if(dueNow.length) showReminderPopup(dueNow);
 }
 
 (async function boot(){
