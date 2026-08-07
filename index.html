@@ -2537,16 +2537,22 @@ function renderProjectCard(p){
       attachExportMenu(card.querySelector(`#pjExportWrap_${p.id}`), ()=>({
         title: p.name,
         metaLines: [stkLabel(p.stakeholder)?`需求方：${stkLabel(p.stakeholder)}`:'', `状态：${p.status==='已结束'?'已完成':'进行中'}`],
-        rows: (p.steps||[]).map(st=>({
-          done: st.status==='done',
-          content: st.content,
-          meta: st.repeat ? repeatLabel(st.repeat) : (st.date ? `${st.date}${st.noTime?'':' '+(st.time||'')}` : ''),
-        })),
-        rowNoun: '步骤',
+        rows: [
+          ...(p.steps||[]).map(st=>({
+            done: st.status==='done',
+            content: st.content,
+            meta: st.repeat ? repeatLabel(st.repeat) : (st.date ? `${st.date}${st.noTime?'':' '+(st.time||'')}` : ''),
+          })),
+          ...(p.takeaways||[]).filter(e=>!e.stepId).map(e=>({
+            content: e.content,
+            meta: '经验记录'+((e.tags&&e.tags.length)? '·'+e.tags.join('、') : ''),
+          }))
+        ],
+        rowNoun: '步骤 / 经验记录',
         columns: [
           {label:'内容', get:r=>r.content},
-          {label:'完成', get:r=>r.done?'是':'否'},
-          {label:'时间/循环规则', get:r=>r.meta}
+          {label:'完成', get:r=>r.done===undefined?'':(r.done?'是':'否')},
+          {label:'时间/循环规则/标签', get:r=>r.meta}
         ]
       }));
     } else {
